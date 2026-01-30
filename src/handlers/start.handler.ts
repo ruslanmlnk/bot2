@@ -2,7 +2,7 @@ import type { Context } from "grammy";
 import { mainKeyboard } from "../ui/keyboards.js";
 import { upsertUser } from "../services/user.service.js";
 import { ADMIN_IDS } from "../config/env.js";
-import db from "../db/index.js";
+import { listWelcomeMessageContents } from "../db/queries/welcomeMessages.js";
 
 export async function startHandler(ctx: Context) {
     const ref_id = typeof ctx.match === "string" ? ctx.match : ctx.match?.[0];
@@ -20,12 +20,12 @@ export async function startHandler(ctx: Context) {
     }
 
     // Fetch all welcome messages
-    const messages = await db.query('SELECT content FROM welcome_messages ORDER BY sort_order ASC');
+    const messages = await listWelcomeMessageContents();
 
-    for (let i = 0; i < messages.rows.length; i++) {
-        const isLast = i === messages.rows.length - 1;
+    for (let i = 0; i < messages.length; i++) {
+        const isLast = i === messages.length - 1;
         const targetId = ctx.from!.id;
-        const payload = messages.rows[i].content;
+        const payload = messages[i].content;
 
         try {
             if (payload.chat_id && payload.message_id) {

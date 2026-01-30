@@ -1,7 +1,7 @@
 import type { Context } from "grammy";
 import { BroadcastService } from "../../services/admin/broadcast.service.js";
 import { getBroadcastsKeyboard, getSingleBroadcastKeyboard } from "../../ui/keyboards.js";
-import db from "../../db/index.js";
+import { listActiveNonAdminUsers, markUserBlocked } from "../../db/queries/users.js";
 import { MESSAGES } from "../../data.js";
 import { ADMIN_IDS } from "../../config/env.js";
 import { adminState } from "../admin.handler.js";
@@ -78,11 +78,7 @@ export async function handleBroadcastCallback(ctx: Context, data: string) {
         if (!bc || msgs.length === 0) return ctx.reply(MESSAGES.ERROR_GENERAL);
 
         // Fetch all users except admins
-        const usersRes = await db.query(
-            'SELECT telegram_id FROM users WHERE is_blocked = FALSE AND NOT (telegram_id = ANY($1::BIGINT[]))',
-            [ADMIN_IDS]
-        );
-        const users = usersRes.rows;
+        const users = await listActiveNonAdminUsers(ADMIN_IDS);
 
         if (users.length === 0) {
             return ctx.editMessageText("⚠️ Немає отримувачів для розсилки (окрім адмінів або заблокованих).", {
@@ -106,7 +102,7 @@ export async function handleBroadcastCallback(ctx: Context, data: string) {
             } catch (e: any) {
                 if (e.description?.includes("blocked") || e.description?.includes("forbidden")) {
                     blockCount++;
-                    await db.query('UPDATE users SET is_blocked = TRUE WHERE telegram_id = $1', [user.telegram_id]);
+                    await markUserBlocked(user.telegram_id);
                 }
             }
             if (successCount % 20 === 0) {

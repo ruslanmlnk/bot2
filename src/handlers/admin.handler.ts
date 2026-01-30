@@ -9,11 +9,18 @@ import {
 } from "../ui/keyboards.js";
 import { ADMIN_IDS } from "../config/env.js";
 import { getCourse, updateCourse } from "../services/course.service.js";
-import db from "../db/index.js";
 import { InlineKeyboard } from "grammy";
 import { handleBroadcastCallback } from "./admin/broadcast.handler.js";
 import { BroadcastService } from "../services/admin/broadcast.service.js";
 import { MESSAGES } from "../data.js";
+import {
+    addWelcomeMessage,
+    deleteWelcomeMessage,
+    listWelcomeMessageIds,
+    updateWelcomeMessage
+} from "../db/queries/welcomeMessages.js";
+import { countUsers } from "../db/queries/users.js";
+import { countOrders, sumSuccessOrders } from "../db/queries/orders.js";
 
 export const adminState = new Map<number, { action: string, data?: any }>();
 
@@ -58,9 +65,9 @@ export async function adminCallback(ctx: Context) {
         adminState.set(userId, { action: "welcome_add" });
         await ctx.editMessageText(MESSAGES.PROMPT_BC_MSG, { reply_markup: getCancelAdminKeyboard("welcome") });
     } else if (data === "admin_welcome_list") {
-        const list = await db.query('SELECT id FROM welcome_messages ORDER BY sort_order ASC');
+        const list = await listWelcomeMessageIds();
         const kb = new InlineKeyboard();
-        list.rows.forEach((row, index) => {
+        list.forEach((row, index) => {
             kb.text(`📝 #${index + 1}`, `admin_welcome_edit_${row.id}`);
             kb.text(`🗑`, `admin_welcome_del_${row.id}`);
             kb.row();
@@ -73,17 +80,17 @@ export async function adminCallback(ctx: Context) {
         await ctx.editMessageText(MESSAGES.PROMPT_BC_MSG, { reply_markup: getCancelAdminKeyboard("welcome_list") });
     } else if (data.startsWith("admin_welcome_del_")) {
         const id = data.replace("admin_welcome_del_", "");
-        await db.query('DELETE FROM welcome_messages WHERE id = $1', [id]);
+        await deleteWelcomeMessage(id);
         return adminCallback(Object.assign(Object.create(Object.getPrototypeOf(ctx)), ctx, {
             callbackQuery: { ...ctx.callbackQuery, data: "admin_welcome_list" }
         }));
     }
 
     else if (data === "admin_stats") {
-        const u = await db.query('SELECT COUNT(*) as count FROM users');
-        const o = await db.query('SELECT COUNT(*) as count FROM orders');
-        const s = await db.query("SELECT SUM(amount) as sum FROM orders WHERE status = 'success'");
-        await ctx.editMessageText(MESSAGES.STATS_BODY(parseInt(u.rows[0].count), parseInt(o.rows[0].count), parseInt(s.rows[0].sum || 0)), { parse_mode: "Markdown", reply_markup: adminKeyboard });
+        const u = await countUsers();
+        const o = await countOrders();
+        const s = await sumSuccessOrders();
+        await ctx.editMessageText(MESSAGES.STATS_BODY(u, o, s), { parse_mode: "Markdown", reply_markup: adminKeyboard });
     }
 
     else if (data.startsWith("admin_cancel_")) {
@@ -160,7 +167,7 @@ export async function adminMessageHandler(ctx: Context) {
         } else if (state.action === "welcome_add") {
             if (ctx.message) {
                 const payload = { chat_id: ctx.chat!.id, message_id: ctx.message.message_id };
-                await db.query('INSERT INTO welcome_messages (content, sort_order) VALUES ($1, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM welcome_messages))', [JSON.stringify(payload)]);
+                await addWelcomeMessage(payload);
                 adminState.delete(userId);
                 await ctx.reply(MESSAGES.SUCCESS_SAVE, { reply_markup: adminWelcomeKeyboard });
             }
@@ -168,13 +175,13 @@ export async function adminMessageHandler(ctx: Context) {
             if (ctx.message) {
                 const id = state.action.replace("welcome_edit_", "");
                 const payload = { chat_id: ctx.chat!.id, message_id: ctx.message.message_id };
-                await db.query('UPDATE welcome_messages SET content = $1 WHERE id = $2', [JSON.stringify(payload), id]);
+                await updateWelcomeMessage(id, payload);
                 adminState.delete(userId);
 
                 // Fetch updated list to show immediately
-                const list = await db.query('SELECT id FROM welcome_messages ORDER BY sort_order ASC');
+                const list = await listWelcomeMessageIds();
                 const kb = new InlineKeyboard();
-                list.rows.forEach((row, index) => {
+                list.forEach((row, index) => {
                     kb.text(`📝 #${index + 1}`, `admin_welcome_edit_${row.id}`);
                     kb.text(`🗑`, `admin_welcome_del_${row.id}`);
                     kb.row();

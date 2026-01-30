@@ -1,9 +1,9 @@
 import express from 'express';
 import crypto from 'crypto';
-import db from './db/index.js';
 import { LIQPAY_PRIVATE_KEY } from './config/env.js';
 import { bot } from './bot.js';
 import { getCourse } from './services/course.service.js';
+import { getOrderStatus, updateOrderStatus } from './db/queries/orders.js';
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -37,10 +37,10 @@ app.post('/liqpay-callback', async (req, res) => {
     const userId = parts[1];
 
     if (status === 'success' || status === 'wait_accept') {
-        const orderRes = await db.query('SELECT status FROM orders WHERE id = $1', [order_id]);
+        const currentStatus = await getOrderStatus(order_id);
 
-        if (orderRes.rows[0] && orderRes.rows[0].status !== 'success') {
-            await db.query('UPDATE orders SET status = $1 WHERE id = $2', ['success', order_id]);
+        if (currentStatus && currentStatus !== 'success') {
+            await updateOrderStatus(order_id, 'success');
 
             const course = await getCourse();
 

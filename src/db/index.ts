@@ -43,6 +43,11 @@ export async function initDb() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS offer_message (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      content JSONB
+    );
+
     -- Robust migration for welcome_messages
     DO $$ 
     BEGIN 

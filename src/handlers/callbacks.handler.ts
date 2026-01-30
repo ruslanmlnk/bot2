@@ -3,9 +3,9 @@ import { mainKeyboard, backKeyboard } from "../ui/keyboards.js";
 import { getCourse } from "../services/course.service.js";
 import { LIQPAY_PUBLIC_KEY } from "../config/env.js";
 import { generateLiqPayLink } from "../services/liqpay.service.js";
-import db from "../db/index.js";
 import { InlineKeyboard } from "grammy";
 import { MESSAGES, BUTTONS } from "../data.js";
+import { createOrder } from "../db/queries/orders.js";
 
 export async function callbackHandler(ctx: Context) {
     const data = ctx.callbackQuery?.data;
@@ -47,10 +47,7 @@ export async function callbackHandler(ctx: Context) {
 
         const orderId = `order_${userId}_${Date.now()}`;
 
-        await db.query(
-            'INSERT INTO orders (id, user_id, amount, status) VALUES ($1, $2, $3, $4)',
-            [orderId, userId, course.price, 'pending']
-        );
+        await createOrder(orderId, userId, course.price, "pending");
 
         const paymentLink = generateLiqPayLink(
             course.price,
