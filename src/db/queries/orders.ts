@@ -21,7 +21,37 @@ export async function countOrders(): Promise<number> {
     return Number(res.rows[0]?.count || 0);
 }
 
+export async function countPendingOrders(): Promise<number> {
+    const res = await db.query("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'");
+    return Number(res.rows[0]?.count || 0);
+}
+
+export async function countPaidOrders(): Promise<number> {
+    const res = await db.query("SELECT COUNT(*) as count FROM orders WHERE status = 'success'");
+    return Number(res.rows[0]?.count || 0);
+}
+
 export async function sumSuccessOrders(): Promise<number> {
     const res = await db.query("SELECT SUM(amount) as sum FROM orders WHERE status = 'success'");
     return Number(res.rows[0]?.sum || 0);
+}
+
+export async function listPaidBuyers(limit: number = 50) {
+    const res = await db.query(
+        `SELECT o.user_id, u.username, u.first_name, u.last_name, o.amount, o.created_at
+         FROM orders o
+         LEFT JOIN users u ON u.telegram_id = o.user_id
+         WHERE o.status = 'success'
+         ORDER BY o.created_at DESC
+         LIMIT $1`,
+        [limit]
+    );
+    return res.rows as Array<{
+        user_id: number;
+        username?: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+        amount?: number | null;
+        created_at?: Date;
+    }>;
 }

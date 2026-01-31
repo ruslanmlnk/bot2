@@ -49,8 +49,13 @@ export const MESSAGES = {
 
     // Admin Stats
     STATS_TITLE: "📊 *Статистика*",
-    STATS_BODY: (users: number, orders: number, total: number) =>
-        `📊 *Статистика*\n\nКористувачів: ${users}\nЗамовлень: ${orders}\nСума: ${total} грн.`
+    STATS_BODY: (users: number, pending: number, paid: number, total: number) =>
+        `📊 *Статистика*
+
+Користувачів: ${users}
+Очікуєть оплату: ${pending}
+Оплачено: ${paid}
+Сума: ${total} грн.`
 };
 
 export const BUTTONS = {

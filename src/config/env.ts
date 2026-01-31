@@ -6,7 +6,11 @@ export const PAYMENT_PROVIDER_TOKEN = process.env.PAYMENT_PROVIDER_TOKEN || '';
 export const LIQPAY_PUBLIC_KEY = process.env.LIQPAY_PUBLIC_KEY || '';
 export const LIQPAY_PRIVATE_KEY = process.env.LIQPAY_PRIVATE_KEY || '';
 export const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'http://localhost:3000';
+export const BOT_USERNAME = process.env.BOT_USERNAME || '';
 
 if (!BOT_API_KEY) {
     console.warn('Warning: BOT_API_KEY is not set in .env');
+}
+if (!BOT_USERNAME) {
+    console.warn('Warning: BOT_USERNAME is not set in .env');
 }

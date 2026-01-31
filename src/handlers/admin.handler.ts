@@ -20,7 +20,7 @@ import {
     updateWelcomeMessage
 } from "../db/queries/welcomeMessages.js";
 import { countUsers } from "../db/queries/users.js";
-import { countOrders, sumSuccessOrders } from "../db/queries/orders.js";
+import { countOrders, countPaidOrders, countPendingOrders, listPaidBuyers, sumSuccessOrders } from "../db/queries/orders.js";
 import { setOfferMessage } from "../db/queries/offerMessage.js";
 
 export const adminState = new Map<number, { action: string, data?: any }>();
@@ -130,9 +130,30 @@ export async function adminCallback(ctx: Context) {
 
     else if (data === "admin_stats") {
         const u = await countUsers();
-        const o = await countOrders();
+        const pending = await countPendingOrders();
+        const paid = await countPaidOrders();
         const s = await sumSuccessOrders();
-        await safeEditText(ctx, MESSAGES.STATS_BODY(u, o, s), { parse_mode: "Markdown", reply_markup: adminKeyboard });
+        const kb = new InlineKeyboard()
+            .text("🧾 Покупці", "admin_stats_buyers")
+            .row()
+            .text(MESSAGES.BACK, "admin_main");
+        await safeEditText(ctx, MESSAGES.STATS_BODY(u, pending, paid, s), { parse_mode: "Markdown", reply_markup: kb });
+    }
+    else if (data === "admin_stats_buyers") {
+        const buyers = await listPaidBuyers(50);
+        if (buyers.length === 0) {
+            return safeEditText(ctx, "Покупців ще немає.", { reply_markup: adminKeyboard });
+        }
+        const lines = buyers.map((b, idx) => {
+            const name = [b.first_name, b.last_name].filter(Boolean).join(" ").trim();
+            const handle = b.username ? `@${b.username}` : "";
+            const title = name || handle || `ID ${b.user_id}`;
+            const amount = b.amount ? `${b.amount} грн` : "";
+            return `${idx + 1}. ${title}${amount ? ` — ${amount}` : ""}`;
+        });
+        const text = `🧾 *Покупці (останні 50):*\n\n${lines.join("\n")}`;
+        const kb = new InlineKeyboard().text(MESSAGES.BACK, "admin_stats");
+        await safeEditText(ctx, text, { parse_mode: "Markdown", reply_markup: kb });
     }
 
     else if (data.startsWith("admin_cancel_")) {
