@@ -1,11 +1,18 @@
 import type { Context } from "grammy";
 import { BroadcastService } from "../../services/admin/broadcast.service.js";
+import { sendBroadcastById } from "../../services/admin/broadcast.sender.js";
 import { getBroadcastsKeyboard, getSingleBroadcastKeyboard } from "../../ui/keyboards.js";
-import { listActiveNonAdminUsers, markUserBlocked } from "../../db/queries/users.js";
 import { MESSAGES } from "../../data.js";
-import { ADMIN_IDS } from "../../config/env.js";
 import { adminState } from "../admin.handler.js";
 import { getCancelAdminKeyboard } from "../../ui/keyboards.js";
+
+function formatDateTime(value: Date | string | null | undefined): string | null {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 export async function handleBroadcastCallback(ctx: Context, data: string) {
     const userId = ctx.from!.id;
@@ -35,10 +42,11 @@ export async function handleBroadcastCallback(ctx: Context, data: string) {
         const bc = await BroadcastService.getById(id);
         const msgs = await BroadcastService.getMessages(id);
         if (!bc) return;
+        const scheduleText = formatDateTime(bc.scheduled_at);
 
-        await ctx.editMessageText(MESSAGES.BROADCAST_DETAILS(bc.name, msgs.length), {
+        await ctx.editMessageText(MESSAGES.BROADCAST_DETAILS(bc.name, msgs.length, scheduleText), {
             parse_mode: "Markdown",
-            reply_markup: getSingleBroadcastKeyboard(id, bc.status, msgs.length)
+            reply_markup: getSingleBroadcastKeyboard(id, bc.status, msgs.length, bc.scheduled_at)
         });
     }
     else if (data.startsWith("admin_bc_delete_")) {
@@ -71,51 +79,55 @@ export async function handleBroadcastCallback(ctx: Context, data: string) {
         await BroadcastService.deleteMessage(msgId);
         await handleBroadcastCallback(ctx, `admin_bc_msgs_list_${bcId}`);
     }
+    else if (data.startsWith("admin_bc_schedule_")) {
+        const id = parseInt(data.replace("admin_bc_schedule_", ""));
+        adminState.set(userId, { action: `bc_schedule_${id}` });
+        await ctx.editMessageText(MESSAGES.PROMPT_BC_SCHEDULE, { reply_markup: getCancelAdminKeyboard(`bc_view_${id}`) });
+    }
+    else if (data.startsWith("admin_bc_unschedule_")) {
+        const id = parseInt(data.replace("admin_bc_unschedule_", ""));
+        await BroadcastService.unschedule(id);
+        const bc = await BroadcastService.getById(id);
+        const msgs = await BroadcastService.getMessages(id);
+        if (!bc) return;
+        const scheduleText = formatDateTime(bc.scheduled_at);
+        await ctx.editMessageText(MESSAGES.BROADCAST_DETAILS(bc.name, msgs.length, scheduleText), {
+            parse_mode: "Markdown",
+            reply_markup: getSingleBroadcastKeyboard(id, bc.status, msgs.length, bc.scheduled_at)
+        });
+    }
     else if (data.startsWith("admin_bc_send_")) {
         const id = parseInt(data.replace("admin_bc_send_", ""));
         const bc = await BroadcastService.getById(id);
         const msgs = await BroadcastService.getMessages(id);
         if (!bc || msgs.length === 0) return ctx.reply(MESSAGES.ERROR_GENERAL);
 
-        // Fetch all users except admins
-        const users = await listActiveNonAdminUsers(ADMIN_IDS);
+        const result = await sendBroadcastById({
+            broadcastId: id,
+            api: ctx.api,
+            onProgress: async (sent, total) => {
+                if (sent % 20 === 0) {
+                    await ctx.editMessageText(
+                        `⏳ Розсилка "${bc.name}" у процесі...
 
-        if (users.length === 0) {
-            return ctx.editMessageText("⚠️ Немає отримувачів для розсилки (окрім адмінів або заблокованих).", {
-                reply_markup: { inline_keyboard: [[{ text: MESSAGES.BACK, callback_data: `admin_bc_view_${id}` }]] }
-            });
-        }
-
-        await ctx.editMessageText(MESSAGES.BC_STARTING(bc.name, users.length));
-
-        let successCount = 0;
-        let blockCount = 0;
-
-        for (const user of users) {
-            try {
-                const targetId = user.telegram_id.toString();
-                for (const m of msgs) {
-                    const payload = typeof m.message_payload === 'string' ? JSON.parse(m.message_payload) : m.message_payload;
-                    await ctx.api.copyMessage(targetId, payload.chat_id.toString(), payload.message_id);
-                }
-                successCount++;
-            } catch (e: any) {
-                if (e.description?.includes("blocked") || e.description?.includes("forbidden")) {
-                    blockCount++;
-                    await markUserBlocked(user.telegram_id);
+` +
+                        `Надіслано: ${sent} / ${total}`
+                    ).catch(() => { });
+                    await new Promise(r => setTimeout(r, 500));
                 }
             }
-            if (successCount % 20 === 0) {
-                // Update progress in place
-                await ctx.editMessageText(
-                    `⏳ Розсилка "${bc.name}" у процесі...\n\n` +
-                    `Надіслано: ${successCount} / ${users.length}`
-                ).catch(() => { });
-                await new Promise(r => setTimeout(r, 500));
+        });
+
+        if (!result.ok) {
+            if (result.reason === "no_users") {
+                return ctx.editMessageText("⚠️ Немає отримувачів для розсилки (окрім адмінів або заблокованих).", {
+                    reply_markup: { inline_keyboard: [[{ text: MESSAGES.BACK, callback_data: `admin_bc_view_${id}` }]] }
+                });
             }
+            return ctx.reply(MESSAGES.ERROR_GENERAL);
         }
 
-        await ctx.editMessageText(MESSAGES.BC_FINISHED(bc.name, successCount, blockCount), {
+        await ctx.editMessageText(MESSAGES.BC_FINISHED(bc.name, result.success, result.blocked), {
             reply_markup: {
                 inline_keyboard: [[{ text: MESSAGES.BACK, callback_data: `admin_bc_view_${id}` }]]
             }

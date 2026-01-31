@@ -7,7 +7,9 @@ import {
     getBroadcastById,
     listBroadcastMessages,
     listBroadcasts,
-    renameBroadcast
+    renameBroadcast,
+    scheduleBroadcast,
+    clearBroadcastSchedule
 } from "../../db/queries/broadcasts.js";
 
 export const BroadcastService = {
@@ -41,5 +43,13 @@ export const BroadcastService = {
 
     async deleteMessage(messageId: number) {
         return deleteBroadcastMessage(messageId);
+    },
+
+    async schedule(id: number, scheduledAt: Date) {
+        return scheduleBroadcast(id, scheduledAt);
+    },
+
+    async unschedule(id: number) {
+        return clearBroadcastSchedule(id);
     }
 };

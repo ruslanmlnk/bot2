@@ -7,7 +7,9 @@ export const mainKeyboard = new InlineKeyboard()
     .text(BUTTONS.COURSE_PROG, "course_program")
     .text(BUTTONS.COURSE_REVIEWS, "course_reviews")
     .row()
-    .text(BUTTONS.COURSE_BUY, "course_buy");
+    .text(BUTTONS.COURSE_BUY, "course_buy")
+    .row()
+    .text(BUTTONS.OFFER, "offer_show");
 
 export const backKeyboard = new InlineKeyboard()
     .text(BUTTONS.BACK, "back_to_main");
@@ -29,6 +31,7 @@ export const adminContentKeyboard = new InlineKeyboard()
     .text(BUTTONS.EDIT_PRICE, "admin_edit_price")
     .row()
     .text(BUTTONS.EDIT_SUCCESS, "admin_edit_success_message")
+    .text(BUTTONS.EDIT_OFFER, "admin_edit_offer")
     .row()
     .text(BUTTONS.BACK, "admin_main");
 
@@ -49,10 +52,15 @@ export function getBroadcastsKeyboard(broadcasts: any[]) {
     return kb;
 }
 
-export function getSingleBroadcastKeyboard(id: number, status: string, messagesCount: number) {
+export function getSingleBroadcastKeyboard(id: number, status: string, messagesCount: number, scheduledAt?: Date | string | null) {
     const kb = new InlineKeyboard();
     kb.text(BUTTONS.BC_VIEW_MSGS, `admin_bc_msgs_list_${id}`).row();
     kb.text(BUTTONS.BC_ADD_MSG, `admin_bc_add_msg_${id}`).row();
+    if (scheduledAt) {
+        kb.text(BUTTONS.BC_UNSCHEDULE, `admin_bc_unschedule_${id}`).row();
+    } else {
+        kb.text(BUTTONS.BC_SCHEDULE, `admin_bc_schedule_${id}`).row();
+    }
     if (messagesCount > 0) {
         kb.text(BUTTONS.BC_SEND_ALL, `admin_bc_send_${id}`).row();
     }

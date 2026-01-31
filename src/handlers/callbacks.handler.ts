@@ -6,6 +6,20 @@ import { generateLiqPayLink } from "../services/liqpay.service.js";
 import { InlineKeyboard } from "grammy";
 import { MESSAGES, BUTTONS } from "../data.js";
 import { createOrder } from "../db/queries/orders.js";
+import { getOfferMessage } from "../db/queries/offerMessage.js";
+import { upsertUser } from "../services/user.service.js";
+
+function normalizePayload(value: any) {
+    if (!value) return null;
+    if (typeof value === "string") {
+        try {
+            return JSON.parse(value);
+        } catch {
+            return { text: value };
+        }
+    }
+    return value;
+}
 
 export async function callbackHandler(ctx: Context) {
     const data = ctx.callbackQuery?.data;
@@ -13,7 +27,30 @@ export async function callbackHandler(ctx: Context) {
 
     await ctx.answerCallbackQuery().catch(() => { });
 
-    const course = await getCourse();
+    try {
+        if (data === "offer_show") {
+            const targetId = ctx.from?.id;
+            if (!targetId) return;
+            const offer = await getOfferMessage();
+            const payload = normalizePayload(offer);
+            if (payload?.chat_id && payload?.message_id) {
+                await ctx.api.copyMessage(targetId, payload.chat_id, payload.message_id, { reply_markup: backKeyboard });
+            } else if (payload?.text) {
+                await ctx.reply(payload.text, { parse_mode: "Markdown", reply_markup: backKeyboard });
+            } else {
+                await ctx.reply(MESSAGES.OFFER_NOT_SET, { reply_markup: backKeyboard });
+            }
+            return;
+        }
+
+        if (data === "back_to_main") {
+            await ctx.editMessageText(MESSAGES.CHOOSE_ACTION, {
+                reply_markup: mainKeyboard,
+            }).catch(() => { });
+            return;
+        }
+
+        const course = await getCourse();
 
     if (data === "course_description") {
         await ctx.editMessageText(`📘 *Опис курсу*\n\n${course.description}`, {
@@ -45,6 +82,16 @@ export async function callbackHandler(ctx: Context) {
             return;
         }
 
+        if (ctx.from) {
+            await upsertUser({
+                telegramId: ctx.from.id,
+                username: ctx.from.username,
+                firstName: ctx.from.first_name,
+                lastName: ctx.from.last_name,
+                languageCode: ctx.from.language_code,
+            });
+        }
+
         const orderId = `order_${userId}_${Date.now()}`;
 
         await createOrder(orderId, userId, course.price, "pending");
@@ -65,9 +112,11 @@ export async function callbackHandler(ctx: Context) {
             reply_markup: kb,
         }).catch(() => { });
 
-    } else if (data === "back_to_main") {
-        await ctx.editMessageText(MESSAGES.CHOOSE_ACTION, {
-            reply_markup: mainKeyboard,
-        }).catch(() => { });
+    }
+    }
+    catch (e) {
+        console.error("Callback handler error:", e);
+        await ctx.reply(MESSAGES.ERROR_GENERAL, { reply_markup: backKeyboard }).catch(() => { });
     }
 }
+

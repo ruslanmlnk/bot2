@@ -67,8 +67,13 @@ export async function initDb() {
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       status TEXT DEFAULT 'draft', -- 'draft', 'sent'
+      scheduled_at TIMESTAMP,
+      sent_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP;
+    ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS sent_at TIMESTAMP;
 
     CREATE TABLE IF NOT EXISTS broadcast_messages (
       id SERIAL PRIMARY KEY,

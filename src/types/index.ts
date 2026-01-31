@@ -20,7 +20,9 @@ export interface Course {
 export interface Broadcast {
     id: number;
     name: string;
-    status: 'draft' | 'sent';
+    status: 'draft' | 'scheduled' | 'sending' | 'sent';
+    scheduled_at?: Date | string | null;
+    sent_at?: Date | string | null;
     created_at: Date;
 }
 

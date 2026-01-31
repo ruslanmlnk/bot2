@@ -21,8 +21,34 @@ import {
 } from "../db/queries/welcomeMessages.js";
 import { countUsers } from "../db/queries/users.js";
 import { countOrders, sumSuccessOrders } from "../db/queries/orders.js";
+import { setOfferMessage } from "../db/queries/offerMessage.js";
 
 export const adminState = new Map<number, { action: string, data?: any }>();
+
+function formatDateTime(value: Date | string | null | undefined): string | null {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseScheduleInput(input: string): Date | null {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+
+    const iso = new Date(trimmed);
+    if (!Number.isNaN(iso.getTime()) && (trimmed.includes("T") || trimmed.endsWith("Z"))) {
+        return iso;
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(trimmed);
+    if (!match) return null;
+    const [, y, m, d, hh, mm, ss] = match;
+    const date = new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss || 0));
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+}
 
 export async function adminHandler(ctx: Context) {
     if (!ctx.from || !ADMIN_IDS.includes(ctx.from.id)) return;
@@ -47,6 +73,11 @@ export async function adminCallback(ctx: Context) {
     } else if (data === "admin_broadcast_menu") {
         const broadcasts = await BroadcastService.getAll();
         await ctx.editMessageText(MESSAGES.BROADCAST_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: getBroadcastsKeyboard(broadcasts) });
+    }
+
+    else if (data === "admin_edit_offer") {
+        adminState.set(userId, { action: "offer_set" });
+        await ctx.editMessageText(MESSAGES.PROMPT_OFFER_MSG, { reply_markup: getCancelAdminKeyboard("offer") });
     }
 
     else if (data.startsWith("admin_edit_")) {
@@ -116,6 +147,9 @@ export async function adminCallback(ctx: Context) {
         if (target === "menu") {
             return adminCallback(fakeCtx("admin_content_menu"));
         }
+        if (target === "offer") {
+            return adminCallback(fakeCtx("admin_content_menu"));
+        }
 
         await ctx.editMessageText(MESSAGES.ADMIN_PANEL_TITLE, { reply_markup: adminKeyboard });
     }
@@ -142,8 +176,9 @@ export async function adminMessageHandler(ctx: Context) {
             adminState.delete(userId);
             const bc = await BroadcastService.getById(id);
             const msgs = await BroadcastService.getMessages(id);
-            await ctx.reply(MESSAGES.BROADCAST_DETAILS(bc!.name, msgs.length), {
-                parse_mode: "Markdown", reply_markup: getSingleBroadcastKeyboard(id, bc!.status, msgs.length)
+            const scheduleText = formatDateTime(bc?.scheduled_at);
+            await ctx.reply(MESSAGES.BROADCAST_DETAILS(bc!.name, msgs.length, scheduleText), {
+                parse_mode: "Markdown", reply_markup: getSingleBroadcastKeyboard(id, bc!.status, msgs.length, bc?.scheduled_at)
             });
         }
         else if (state.action.startsWith("bc_add_msg_")) {
@@ -153,10 +188,32 @@ export async function adminMessageHandler(ctx: Context) {
                 adminState.delete(userId);
                 const bc = await BroadcastService.getById(id);
                 const msgs = await BroadcastService.getMessages(id);
-                await ctx.reply(MESSAGES.SUCCESS_SAVE + "\n\n" + MESSAGES.BROADCAST_DETAILS(bc!.name, msgs.length), {
-                    parse_mode: "Markdown", reply_markup: getSingleBroadcastKeyboard(id, bc!.status, msgs.length)
+                const scheduleText = formatDateTime(bc?.scheduled_at);
+                await ctx.reply(MESSAGES.SUCCESS_SAVE + "\n\n" + MESSAGES.BROADCAST_DETAILS(bc!.name, msgs.length, scheduleText), {
+                    parse_mode: "Markdown", reply_markup: getSingleBroadcastKeyboard(id, bc!.status, msgs.length, bc?.scheduled_at)
                 });
             }
+        }
+        else if (state.action.startsWith("bc_schedule_")) {
+            const id = parseInt(state.action.replace("bc_schedule_", ""));
+            const input = ctx.message?.text || "";
+            const date = parseScheduleInput(input);
+            if (!date) {
+                await ctx.reply(MESSAGES.ERROR_BC_SCHEDULE_FORMAT, { reply_markup: getCancelAdminKeyboard(`bc_view_${id}`) });
+                return;
+            }
+            if (date.getTime() <= Date.now()) {
+                await ctx.reply(MESSAGES.ERROR_BC_SCHEDULE_PAST, { reply_markup: getCancelAdminKeyboard(`bc_view_${id}`) });
+                return;
+            }
+            await BroadcastService.schedule(id, date);
+            adminState.delete(userId);
+            const bc = await BroadcastService.getById(id);
+            const msgs = await BroadcastService.getMessages(id);
+            const scheduleText = formatDateTime(bc?.scheduled_at);
+            await ctx.reply(MESSAGES.BROADCAST_DETAILS(bc!.name, msgs.length, scheduleText), {
+                parse_mode: "Markdown", reply_markup: getSingleBroadcastKeyboard(id, bc!.status, msgs.length, bc?.scheduled_at)
+            });
         }
         else if (state.action.startsWith("edit_")) {
             const field = state.action.replace("edit_", "");
@@ -164,6 +221,13 @@ export async function adminMessageHandler(ctx: Context) {
             await updateCourse(field as any, val as any);
             adminState.delete(userId);
             await ctx.reply(MESSAGES.SUCCESS_SAVE, { reply_markup: adminContentKeyboard });
+        } else if (state.action === "offer_set") {
+            if (ctx.message) {
+                const payload = { chat_id: ctx.chat!.id, message_id: ctx.message.message_id };
+                await setOfferMessage(payload);
+                adminState.delete(userId);
+                await ctx.reply(MESSAGES.SUCCESS_SAVE, { reply_markup: adminContentKeyboard });
+            }
         } else if (state.action === "welcome_add") {
             if (ctx.message) {
                 const payload = { chat_id: ctx.chat!.id, message_id: ctx.message.message_id };

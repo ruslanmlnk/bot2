@@ -20,11 +20,14 @@ export const MESSAGES = {
 
     // Admin Broadcasts
     BROADCAST_MGMT_TITLE: "📢 *Керування розсилками*",
-    BROADCAST_DETAILS: (name: string, count: number) =>
-        `📦 *Розсилка:* ${name}\n✉️ *Повідомлень:* ${count}\n\nВи можете додавати повідомлення будь-якого типу та надсилати цю розсилку скільки завгодно разів.`,
+    BROADCAST_DETAILS: (name: string, count: number, scheduleText?: string | null) =>
+        `📦 *Розсилка:* ${name}\n✉️ *Повідомлень:* ${count}${scheduleText ? `\n⏰ *Заплановано:* ${scheduleText}` : ""}\n\nВи можете додавати повідомлення будь-якого типу та надсилати цю розсилку скільки завгодно разів.`,
     PROMPT_BC_NAME: "📝 Введіть назву для нової розсилки:",
     PROMPT_BC_MSG: "📥 Надішліть боту ПОВІДОМЛЕННЯ (будь-якого типу), яке хочете додати до цієї розсилки:",
     PROMPT_BC_RENAME: "📝 Введіть нову назву для розсилки:",
+    PROMPT_BC_SCHEDULE: "📅 Введіть дату та час відкладеної розсилки (YYYY-MM-DD HH:mm):",
+    ERROR_BC_SCHEDULE_FORMAT: "❌ Невірний формат дати. Використайте YYYY-MM-DD HH:mm.",
+    ERROR_BC_SCHEDULE_PAST: "❌ Цей час уже минув. Вкажіть майбутній час.",
     BC_STARTING: (name: string, count: number) => `🚀 Починаю розсилку "${name}" на ${count} користувачів...`,
     BC_FINISHED: (name: string, ok: number, err: number) =>
         `✅ Розсилка "${name}" завершена!\n\nУспішно: ${ok}\nБлокувань/Помилок: ${err}`,
@@ -33,6 +36,10 @@ export const MESSAGES = {
     WELCOME_MGMT_TITLE: "👋 *Вітальні повідомлення*",
     PROMPT_WELCOME_ADD: "💬 Введіть текст нового вітального СМС:",
     WELCOME_LIST_TITLE: "📜 *Список вітальних СМС:*",
+
+    // Offer
+    PROMPT_OFFER_MSG: "📄 Надішліть повідомлення оферти (будь-якого типу):",
+    OFFER_NOT_SET: "⚠️ Оферта поки не налаштована.",
 
     // Payments
     PAYMENT_TITLE: "💳 *Оплата курсу*",
@@ -51,6 +58,7 @@ export const BUTTONS = {
     COURSE_PROG: "🎯 Програма",
     COURSE_REVIEWS: "⭐ Відгуки",
     COURSE_BUY: "🛒 Купити",
+    OFFER: "📄 Оферта",
 
     ADMIN_CONTENT: "📝 Контент курсу",
     ADMIN_WELCOME: "👋 Вітальні СМС",
@@ -63,10 +71,13 @@ export const BUTTONS = {
     EDIT_REVIEWS: "⭐ Відгуки",
     EDIT_PRICE: "💰 Ціна",
     EDIT_SUCCESS: "🎉 Смс успіху",
+    EDIT_OFFER: "📄 Оферта",
 
     BC_NEW: "➕ Створити нову розсилку",
     BC_VIEW_MSGS: "📝 Перегляд / видалення смс",
     BC_ADD_MSG: "➕ Додати повідомлення",
+    BC_SCHEDULE: "📅 Запланувати",
+    BC_UNSCHEDULE: "❌ Скасувати відкладення",
     BC_SEND_ALL: "🚀 ВІДПРАВИТИ ВСІМ",
     BC_RENAME: "📝 Перейменувати",
     BC_DELETE: "🗑 Видалити",
