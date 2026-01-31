@@ -63,7 +63,7 @@ export function updateBroadcastStatus(id: number, status: Broadcast["status"]) {
 
 export async function listDueScheduledBroadcasts(limit: number): Promise<Broadcast[]> {
     const res = await db.query(
-        "SELECT * FROM broadcasts WHERE status = 'scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= NOW() ORDER BY scheduled_at ASC LIMIT $1",
+        "SELECT * FROM broadcasts WHERE status IN ('scheduled', 'draft') AND scheduled_at IS NOT NULL AND scheduled_at <= NOW() ORDER BY scheduled_at ASC LIMIT $1",
         [limit]
     );
     return res.rows;
@@ -71,7 +71,7 @@ export async function listDueScheduledBroadcasts(limit: number): Promise<Broadca
 
 export async function claimScheduledBroadcast(id: number): Promise<boolean> {
     const res = await db.query(
-        "UPDATE broadcasts SET status = 'sending' WHERE id = $1 AND status = 'scheduled' RETURNING id",
+        "UPDATE broadcasts SET status = 'sending' WHERE id = $1 AND status IN ('scheduled', 'draft') RETURNING id",
         [id]
     );
     return (res.rowCount || 0) > 0;

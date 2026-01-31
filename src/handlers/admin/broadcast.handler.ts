@@ -14,6 +14,15 @@ function formatDateTime(value: Date | string | null | undefined): string | null 
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function formatTimezoneOffset(date: Date) {
+    const offsetMinutes = -date.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const abs = Math.abs(offsetMinutes);
+    const hours = String(Math.floor(abs / 60)).padStart(2, "0");
+    const minutes = String(abs % 60).padStart(2, "0");
+    return `UTC${sign}${hours}:${minutes}`;
+}
+
 export async function handleBroadcastCallback(ctx: Context, data: string) {
     const userId = ctx.from!.id;
     if (data === "admin_broadcast_menu") {
@@ -82,7 +91,12 @@ export async function handleBroadcastCallback(ctx: Context, data: string) {
     else if (data.startsWith("admin_bc_schedule_")) {
         const id = parseInt(data.replace("admin_bc_schedule_", ""));
         adminState.set(userId, { action: `bc_schedule_${id}` });
-        await ctx.editMessageText(MESSAGES.PROMPT_BC_SCHEDULE, { reply_markup: getCancelAdminKeyboard(`bc_view_${id}`) });
+        const now = new Date();
+        const nowText = formatDateTime(now);
+        const tzText = formatTimezoneOffset(now);
+        await ctx.editMessageText(`${MESSAGES.PROMPT_BC_SCHEDULE}\n\nПоточний час: ${nowText} (${tzText})`, {
+            reply_markup: getCancelAdminKeyboard(`bc_view_${id}`)
+        });
     }
     else if (data.startsWith("admin_bc_unschedule_")) {
         const id = parseInt(data.replace("admin_bc_unschedule_", ""));
