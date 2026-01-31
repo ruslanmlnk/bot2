@@ -17,11 +17,16 @@ async function tick() {
         for (const bc of due) {
             const claimed = await claimScheduledBroadcast(bc.id);
             if (!claimed) continue;
-            await sendBroadcastById({
+            const result = await sendBroadcastById({
                 broadcastId: bc.id,
                 api: bot.api,
                 skipStatusUpdate: true
             });
+            if (!result.ok) {
+                console.warn(
+                    `Broadcast #${bc.id} failed: ${result.reason || "unknown"} (sent=${result.success}, blocked=${result.blocked}, total=${result.total})`
+                );
+            }
         }
     } catch (e) {
         console.error("Broadcast scheduler error:", e);

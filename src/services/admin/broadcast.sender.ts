@@ -1,10 +1,10 @@
 import type { Api } from "grammy";
 import { ADMIN_IDS } from "../../config/env.js";
 import {
-    clearBroadcastSchedule,
     getBroadcastById,
     listBroadcastMessages,
     markBroadcastSent,
+    rescheduleBroadcast,
     updateBroadcastStatus
 } from "../../db/queries/broadcasts.js";
 import { listActiveNonAdminUsers, markUserBlocked } from "../../db/queries/users.js";
@@ -44,7 +44,7 @@ export async function sendBroadcastById(options: {
 
     const msgs = await listBroadcastMessages(broadcastId);
     if (msgs.length === 0) {
-        await clearBroadcastSchedule(broadcastId);
+        await rescheduleBroadcast(broadcastId, 60);
         return { ok: false, reason: "no_messages", success: 0, blocked: 0, total: 0 };
     }
 
@@ -54,7 +54,7 @@ export async function sendBroadcastById(options: {
 
     const users = await listActiveNonAdminUsers(ADMIN_IDS);
     if (users.length === 0) {
-        await clearBroadcastSchedule(broadcastId);
+        await rescheduleBroadcast(broadcastId, 60);
         return { ok: false, reason: "no_users", success: 0, blocked: 0, total: 0 };
     }
 
@@ -96,7 +96,7 @@ export async function sendBroadcastById(options: {
         };
     } catch (e) {
         console.error("Broadcast send error:", e);
-        await clearBroadcastSchedule(broadcastId);
+        await rescheduleBroadcast(broadcastId, 60);
         return { ok: false, reason: "error", success: successCount, blocked: blockCount, total: users.length };
     }
 }

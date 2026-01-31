@@ -83,3 +83,10 @@ export function markBroadcastSent(id: number) {
         [id]
     );
 }
+
+export function rescheduleBroadcast(id: number, delaySeconds: number) {
+    return db.query(
+        "UPDATE broadcasts SET status = 'scheduled', scheduled_at = NOW() + ($2 * INTERVAL '1 second') WHERE id = $1",
+        [id, delaySeconds]
+    );
+}
