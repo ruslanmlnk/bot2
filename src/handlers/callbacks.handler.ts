@@ -1,5 +1,5 @@
 import type { Context } from "grammy";
-import { mainKeyboard, backKeyboard } from "../ui/keyboards.js";
+import { getMainKeyboard, backKeyboard } from "../ui/keyboards.js";
 import { getCourse } from "../services/course.service.js";
 import { LIQPAY_PUBLIC_KEY } from "../config/env.js";
 import { generateLiqPayLink } from "../services/liqpay.service.js";
@@ -8,6 +8,7 @@ import { MESSAGES, BUTTONS } from "../data.js";
 import { createOrder } from "../db/queries/orders.js";
 import { getOfferMessage } from "../db/queries/offerMessage.js";
 import { upsertUser } from "../services/user.service.js";
+import { ADMIN_IDS } from "../config/env.js";
 
 function normalizePayload(value: any) {
     if (!value) return null;
@@ -46,7 +47,7 @@ export async function callbackHandler(ctx: Context) {
 
         if (data === "back_to_main") {
             await ctx.editMessageText(MESSAGES.CHOOSE_ACTION, {
-                reply_markup: mainKeyboard,
+                reply_markup: getMainKeyboard(ADMIN_IDS.includes(ctx.from?.id || 0)),
             }).catch(() => { });
             return;
         }

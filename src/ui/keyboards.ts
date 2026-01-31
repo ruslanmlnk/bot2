@@ -1,15 +1,23 @@
 import { InlineKeyboard } from "grammy";
 import { BUTTONS, MESSAGES } from "../data.js";
 
-export const mainKeyboard = new InlineKeyboard()
-    .text(BUTTONS.COURSE_DESC, "course_description")
-    .row()
-    .text(BUTTONS.COURSE_PROG, "course_program")
-    .text(BUTTONS.COURSE_REVIEWS, "course_reviews")
-    .row()
-    .text(BUTTONS.COURSE_BUY, "course_buy")
-    .row()
-    .text(BUTTONS.OFFER, "offer_show");
+export function getMainKeyboard(isAdmin: boolean) {
+    const kb = new InlineKeyboard()
+        .text(BUTTONS.COURSE_DESC, "course_description")
+        .row()
+        .text(BUTTONS.COURSE_PROG, "course_program")
+        .text(BUTTONS.COURSE_REVIEWS, "course_reviews")
+        .row()
+        .text(BUTTONS.COURSE_BUY, "course_buy")
+        .row()
+        .text(BUTTONS.OFFER, "offer_show");
+
+    if (isAdmin) {
+        kb.row().text(BUTTONS.ADMIN_PANEL, "admin_main");
+    }
+
+    return kb;
+}
 
 export const backKeyboard = new InlineKeyboard()
     .text(BUTTONS.BACK, "back_to_main");

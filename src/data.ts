@@ -65,6 +65,7 @@ export const BUTTONS = {
     COURSE_BUY: "🛒 Купити",
     OFFER: "📄 Оферта",
 
+    ADMIN_PANEL: "🛠 Адмін",
     ADMIN_CONTENT: "📝 Контент курсу",
     ADMIN_WELCOME: "👋 Вітальні СМС",
     ADMIN_BROADCASTS: "📢 Розсилки",
