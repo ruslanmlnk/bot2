@@ -112,8 +112,11 @@ export async function adminCallback(ctx: Context) {
     } else if (data.startsWith("admin_welcome_del_")) {
         const id = data.replace("admin_welcome_del_", "");
         await deleteWelcomeMessage(id);
+        const baseCallback = ctx.callbackQuery
+            ? { ...ctx.callbackQuery, data: "admin_welcome_list" }
+            : ({ data: "admin_welcome_list" } as any);
         return adminCallback(Object.assign(Object.create(Object.getPrototypeOf(ctx)), ctx, {
-            callbackQuery: { ...ctx.callbackQuery, data: "admin_welcome_list" }
+            callbackQuery: baseCallback
         }));
     }
 
@@ -128,9 +131,14 @@ export async function adminCallback(ctx: Context) {
         const target = data.replace("admin_cancel_", "");
         adminState.delete(userId);
 
-        const fakeCtx = (targetData: string) => Object.assign(Object.create(Object.getPrototypeOf(ctx)), ctx, {
-            callbackQuery: { ...ctx.callbackQuery, data: targetData }
-        });
+        const fakeCtx = (targetData: string) => {
+            const baseCallback = ctx.callbackQuery
+                ? { ...ctx.callbackQuery, data: targetData }
+                : ({ data: targetData } as any);
+            return Object.assign(Object.create(Object.getPrototypeOf(ctx)), ctx, {
+                callbackQuery: baseCallback
+            });
+        };
 
         if (target === "bc_menu") {
             return adminCallback(fakeCtx("admin_broadcast_menu"));
