@@ -25,6 +25,14 @@ import { setOfferMessage } from "../db/queries/offerMessage.js";
 
 export const adminState = new Map<number, { action: string, data?: any }>();
 
+async function safeEditText(ctx: Context, text: string, opts?: Parameters<Context["editMessageText"]>[1]) {
+    try {
+        await ctx.editMessageText(text, opts as any);
+    } catch {
+        await ctx.reply(text, opts as any).catch(() => { });
+    }
+}
+
 function formatDateTime(value: Date | string | null | undefined): string | null {
     if (!value) return null;
     const date = value instanceof Date ? value : new Date(value);
@@ -65,19 +73,19 @@ export async function adminCallback(ctx: Context) {
     if (data.startsWith("admin_bc_")) return handleBroadcastCallback(ctx, data);
 
     if (data === "admin_main") {
-        await ctx.editMessageText(MESSAGES.ADMIN_PANEL_TITLE, { parse_mode: "Markdown", reply_markup: adminKeyboard });
+        await safeEditText(ctx, MESSAGES.ADMIN_PANEL_TITLE, { parse_mode: "Markdown", reply_markup: adminKeyboard });
     } else if (data === "admin_content_menu") {
-        await ctx.editMessageText(MESSAGES.CONTENT_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: adminContentKeyboard });
+        await safeEditText(ctx, MESSAGES.CONTENT_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: adminContentKeyboard });
     } else if (data === "admin_welcome_menu") {
-        await ctx.editMessageText(MESSAGES.WELCOME_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: adminWelcomeKeyboard });
+        await safeEditText(ctx, MESSAGES.WELCOME_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: adminWelcomeKeyboard });
     } else if (data === "admin_broadcast_menu") {
         const broadcasts = await BroadcastService.getAll();
-        await ctx.editMessageText(MESSAGES.BROADCAST_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: getBroadcastsKeyboard(broadcasts) });
+        await safeEditText(ctx, MESSAGES.BROADCAST_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: getBroadcastsKeyboard(broadcasts) });
     }
 
     else if (data === "admin_edit_offer") {
         adminState.set(userId, { action: "offer_set" });
-        await ctx.editMessageText(MESSAGES.PROMPT_OFFER_MSG, { reply_markup: getCancelAdminKeyboard("offer") });
+        await safeEditText(ctx, MESSAGES.PROMPT_OFFER_MSG, { reply_markup: getCancelAdminKeyboard("offer") });
     }
 
     else if (data.startsWith("admin_edit_")) {
@@ -89,12 +97,12 @@ export async function adminCallback(ctx: Context) {
         if (field === "reviews") prompt = MESSAGES.PROMPT_REVIEWS;
         if (field === "price") prompt = MESSAGES.PROMPT_PRICE;
         if (field === "success_message") prompt = MESSAGES.PROMPT_SUCCESS_MSG;
-        await ctx.editMessageText(`${MESSAGES.EDIT_TITLE}\n\n${prompt}`, { parse_mode: "Markdown", reply_markup: getCancelAdminKeyboard("menu") });
+        await safeEditText(ctx, `${MESSAGES.EDIT_TITLE}\n\n${prompt}`, { parse_mode: "Markdown", reply_markup: getCancelAdminKeyboard("menu") });
     }
 
     else if (data === "admin_welcome_add") {
         adminState.set(userId, { action: "welcome_add" });
-        await ctx.editMessageText(MESSAGES.PROMPT_BC_MSG, { reply_markup: getCancelAdminKeyboard("welcome") });
+        await safeEditText(ctx, MESSAGES.PROMPT_BC_MSG, { reply_markup: getCancelAdminKeyboard("welcome") });
     } else if (data === "admin_welcome_list") {
         const list = await listWelcomeMessageIds();
         const kb = new InlineKeyboard();
@@ -104,11 +112,11 @@ export async function adminCallback(ctx: Context) {
             kb.row();
         });
         kb.text(MESSAGES.BACK, "admin_welcome_menu");
-        await ctx.editMessageText(MESSAGES.WELCOME_LIST_TITLE + "\n\nВиберіть повідомлення для редагування або видалення.", { parse_mode: "Markdown", reply_markup: kb });
+        await safeEditText(ctx, MESSAGES.WELCOME_LIST_TITLE + "\n\nВиберіть повідомлення для редагування або видалення.", { parse_mode: "Markdown", reply_markup: kb });
     } else if (data.startsWith("admin_welcome_edit_")) {
         const id = data.replace("admin_welcome_edit_", "");
         adminState.set(userId, { action: `welcome_edit_${id}` });
-        await ctx.editMessageText(MESSAGES.PROMPT_BC_MSG, { reply_markup: getCancelAdminKeyboard("welcome_list") });
+        await safeEditText(ctx, MESSAGES.PROMPT_BC_MSG, { reply_markup: getCancelAdminKeyboard("welcome_list") });
     } else if (data.startsWith("admin_welcome_del_")) {
         const id = data.replace("admin_welcome_del_", "");
         await deleteWelcomeMessage(id);
@@ -124,7 +132,7 @@ export async function adminCallback(ctx: Context) {
         const u = await countUsers();
         const o = await countOrders();
         const s = await sumSuccessOrders();
-        await ctx.editMessageText(MESSAGES.STATS_BODY(u, o, s), { parse_mode: "Markdown", reply_markup: adminKeyboard });
+        await safeEditText(ctx, MESSAGES.STATS_BODY(u, o, s), { parse_mode: "Markdown", reply_markup: adminKeyboard });
     }
 
     else if (data.startsWith("admin_cancel_")) {
@@ -159,7 +167,7 @@ export async function adminCallback(ctx: Context) {
             return adminCallback(fakeCtx("admin_content_menu"));
         }
 
-        await ctx.editMessageText(MESSAGES.ADMIN_PANEL_TITLE, { reply_markup: adminKeyboard });
+        await safeEditText(ctx, MESSAGES.ADMIN_PANEL_TITLE, { reply_markup: adminKeyboard });
     }
 }
 

@@ -33,10 +33,15 @@ export async function callbackHandler(ctx: Context) {
             if (!targetId) return;
             const offer = await getOfferMessage();
             const payload = normalizePayload(offer);
-            if (payload?.chat_id && payload?.message_id) {
+            if (payload?.text) {
+                await ctx.editMessageText(payload.text, { parse_mode: "Markdown", reply_markup: backKeyboard })
+                    .catch(async () => {
+                        await ctx.reply(payload.text, { parse_mode: "Markdown", reply_markup: backKeyboard });
+                    });
+            } else if (payload?.chat_id && payload?.message_id) {
+                // Can't edit text -> media; replace message instead.
+                await ctx.deleteMessage().catch(() => { });
                 await ctx.api.copyMessage(targetId, payload.chat_id, payload.message_id, { reply_markup: backKeyboard });
-            } else if (payload?.text) {
-                await ctx.reply(payload.text, { parse_mode: "Markdown", reply_markup: backKeyboard });
             } else {
                 await ctx.reply(MESSAGES.OFFER_NOT_SET, { reply_markup: backKeyboard });
             }
