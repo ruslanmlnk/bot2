@@ -3,11 +3,14 @@ import { BOT_API_KEY } from "./config/env.js";
 import { startHandler } from "./handlers/start.handler.js";
 import { callbackHandler } from "./handlers/callbacks.handler.js"; // Wait, I'll use .js in imports because of NodeNext
 import { adminHandler, adminCallback, adminMessageHandler } from "./handlers/admin.handler.js";
+import { startBroadcastScheduler } from "./services/admin/broadcast.scheduler.js";
 
 // Note: Using .js extensions for imports as required by NodeNext module resolution
 // although the files are .ts. The compiler will handle this.
 
 export const bot = new Bot(BOT_API_KEY);
+
+startBroadcastScheduler();
 
 bot.catch((err) => {
     console.error("Bot error:", err.error);

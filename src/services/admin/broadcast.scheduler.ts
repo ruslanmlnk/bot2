@@ -7,6 +7,7 @@ import { sendBroadcastById } from "./broadcast.sender.js";
 
 const POLL_INTERVAL_MS = 30_000;
 let isRunning = false;
+let started = false;
 
 async function tick() {
     if (isRunning) return;
@@ -30,6 +31,9 @@ async function tick() {
 }
 
 export function startBroadcastScheduler() {
+    if (started) return;
+    started = true;
+    console.log("Broadcast scheduler started.");
     tick().catch(() => { });
     setInterval(() => {
         tick().catch(() => { });
