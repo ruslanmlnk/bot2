@@ -308,8 +308,13 @@ export async function adminMessageHandler(ctx: Context) {
         } else if (state.action === "offer_set") {
             if (ctx.message) {
                 const text = ctx.message.text || ctx.message.caption;
-                const payload = text ? { text } : { chat_id: ctx.chat!.id, message_id: ctx.message.message_id };
-                await setOfferMessage(payload);
+                if (!text) {
+                    await ctx.reply("Оферта має бути текстом. Надішліть текстове повідомлення.", {
+                        reply_markup: getCancelAdminKeyboard("offer")
+                    });
+                    return;
+                }
+                await setOfferMessage({ text });
                 adminState.delete(userId);
                 await ctx.reply(MESSAGES.SUCCESS_SAVE, { reply_markup: adminContentKeyboard });
             }
