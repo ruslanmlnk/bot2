@@ -4,6 +4,7 @@ import { upsertUser } from "../services/user.service.js";
 import { ADMIN_IDS } from "../config/env.js";
 import { listWelcomeMessageContents } from "../db/queries/welcomeMessages.js";
 import { MESSAGES } from "../data.js";
+import { hasPaidOrder } from "../db/queries/orders.js";
 
 function normalizePayload(value: any) {
     if (!value) return null;
@@ -29,6 +30,7 @@ export async function startHandler(ctx: Context) {
             }
             return;
         }
+        let isPaid = false;
         if (user) {
             await upsertUser({
                 telegramId: user.id,
@@ -38,6 +40,7 @@ export async function startHandler(ctx: Context) {
                 languageCode: user.language_code,
                 refId: ref_id,
             });
+            isPaid = await hasPaidOrder(user.id);
         }
 
     // Fetch all welcome messages
@@ -53,13 +56,13 @@ export async function startHandler(ctx: Context) {
             if (payload?.chat_id && payload?.message_id) {
                 // Use copyMessage for true cloning of any message type
                 await ctx.api.copyMessage(targetId, payload.chat_id, payload.message_id, {
-                    reply_markup: isLast ? getMainKeyboard(ADMIN_IDS.includes(targetId)) : undefined
+                    reply_markup: isLast ? getMainKeyboard(ADMIN_IDS.includes(targetId), isPaid) : undefined
                 });
             } else if (payload?.text) {
                 // Legacy support for text-only messages
                 await ctx.reply(payload.text, {
                     parse_mode: "Markdown",
-                    reply_markup: isLast ? getMainKeyboard(ADMIN_IDS.includes(targetId)) : undefined
+                    reply_markup: isLast ? getMainKeyboard(ADMIN_IDS.includes(targetId), isPaid) : undefined
                 });
             }
         } catch (e) {

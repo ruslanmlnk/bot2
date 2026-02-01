@@ -4,6 +4,7 @@ import { LIQPAY_PRIVATE_KEY } from './config/env.js';
 import { bot } from './bot.js';
 import { getCourse } from './services/course.service.js';
 import { getOrderStatus, updateOrderStatus } from './db/queries/orders.js';
+import { sendProductDelivery } from './services/admin/product.delivery.js';
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -34,7 +35,10 @@ app.post('/liqpay-callback', async (req, res) => {
 
     // order_id is in format: order_USERID_TIMESTAMP
     const parts = order_id.split('_');
-    const userId = parts[1];
+    const userId = Number(parts[1]);
+    if (!Number.isFinite(userId)) {
+        return res.status(400).send('Invalid user id');
+    }
 
     if (status === 'success' || status === 'wait_accept') {
         const currentStatus = await getOrderStatus(order_id);
@@ -50,6 +54,12 @@ app.post('/liqpay-callback', async (req, res) => {
             // Try to find the original message and update it to "Paid"
             // We don't store message_id in orders yet, but we can send a new confirmation
             await bot.api.sendMessage(userId, "✅ *Оплата підтверджена!*", { parse_mode: 'Markdown' });
+
+            try {
+                await sendProductDelivery(bot.api, userId);
+            } catch (e) {
+                console.error("Failed to send product delivery:", e);
+            }
         }
     }
 

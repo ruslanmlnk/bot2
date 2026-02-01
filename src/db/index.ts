@@ -43,6 +43,13 @@ export async function initDb() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS product_messages (
+      id SERIAL PRIMARY KEY,
+      content JSONB NOT NULL,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS offer_message (
       id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
       content JSONB

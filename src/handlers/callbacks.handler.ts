@@ -5,10 +5,11 @@ import { LIQPAY_PUBLIC_KEY } from "../config/env.js";
 import { generateLiqPayLink } from "../services/liqpay.service.js";
 import { InlineKeyboard } from "grammy";
 import { MESSAGES, BUTTONS } from "../data.js";
-import { createOrder } from "../db/queries/orders.js";
+import { createOrder, hasPaidOrder } from "../db/queries/orders.js";
 import { getOfferMessage } from "../db/queries/offerMessage.js";
 import { upsertUser } from "../services/user.service.js";
 import { ADMIN_IDS } from "../config/env.js";
+import { sendProductDelivery } from "../services/admin/product.delivery.js";
 
 function normalizePayload(value: any) {
     if (!value) return null;
@@ -46,8 +47,10 @@ export async function callbackHandler(ctx: Context) {
         }
 
         if (data === "back_to_main") {
+            const userId = ctx.from?.id;
+            const isPaid = userId ? await hasPaidOrder(userId) : false;
             await ctx.editMessageText(MESSAGES.CHOOSE_ACTION, {
-                reply_markup: getMainKeyboard(ADMIN_IDS.includes(ctx.from?.id || 0)),
+                reply_markup: getMainKeyboard(ADMIN_IDS.includes(ctx.from?.id || 0), isPaid),
             }).catch(() => { });
             return;
         }
@@ -72,6 +75,18 @@ export async function callbackHandler(ctx: Context) {
     } else if (data === "course_buy") {
         const userId = ctx.from?.id;
         if (!userId) return;
+
+        if (await hasPaidOrder(userId)) {
+            const kb = new InlineKeyboard()
+                .text(BUTTONS.BUY_RESEND, "course_resend")
+                .row()
+                .text(BUTTONS.BACK, "back_to_main");
+            await ctx.editMessageText(MESSAGES.PAYMENT_ALREADY, {
+                parse_mode: "Markdown",
+                reply_markup: kb,
+            }).catch(() => { });
+            return;
+        }
 
         if (!LIQPAY_PUBLIC_KEY) {
             await ctx.editMessageText(
@@ -114,6 +129,15 @@ export async function callbackHandler(ctx: Context) {
             reply_markup: kb,
         }).catch(() => { });
 
+    } else if (data === "course_resend") {
+        const userId = ctx.from?.id;
+        if (!userId) return;
+        if (!(await hasPaidOrder(userId))) {
+            await ctx.answerCallbackQuery({ text: "Оплата не знайдена." }).catch(() => { });
+            return;
+        }
+        await sendProductDelivery(ctx.api, userId);
+        await ctx.reply(MESSAGES.PRODUCT_DELIVERED, { reply_markup: backKeyboard }).catch(() => { });
     }
     }
     catch (e) {

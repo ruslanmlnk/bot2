@@ -3,6 +3,7 @@ import {
     adminKeyboard,
     adminContentKeyboard,
     adminWelcomeKeyboard,
+    adminProductKeyboard,
     getBroadcastsKeyboard,
     getSingleBroadcastKeyboard,
     getCancelAdminKeyboard
@@ -20,8 +21,9 @@ import {
     updateWelcomeMessage
 } from "../db/queries/welcomeMessages.js";
 import { countUsers } from "../db/queries/users.js";
-import { countOrders, countPaidOrders, countPendingOrders, listPaidBuyers, sumSuccessOrders } from "../db/queries/orders.js";
+import { countOrders, countPaidOrders, countPendingOrders, deletePaidOrdersByUser, listPaidBuyers, sumSuccessOrders } from "../db/queries/orders.js";
 import { setOfferMessage } from "../db/queries/offerMessage.js";
+import { addProductMessage, deleteProductMessage, listProductMessageIds } from "../db/queries/productMessages.js";
 
 export const adminState = new Map<number, { action: string, data?: any }>();
 
@@ -83,6 +85,10 @@ export async function adminCallback(ctx: Context) {
         await safeEditText(ctx, MESSAGES.BROADCAST_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: getBroadcastsKeyboard(broadcasts) });
     }
 
+    else if (data === "admin_product_menu") {
+        await safeEditText(ctx, "📦 *Продукт*", { parse_mode: "Markdown", reply_markup: adminProductKeyboard });
+    }
+
     else if (data === "admin_edit_offer") {
         adminState.set(userId, { action: "offer_set" });
         await safeEditText(ctx, MESSAGES.PROMPT_OFFER_MSG, { reply_markup: getCancelAdminKeyboard("offer") });
@@ -128,6 +134,28 @@ export async function adminCallback(ctx: Context) {
         }));
     }
 
+    else if (data === "admin_product_add") {
+        adminState.set(userId, { action: "product_add" });
+        await safeEditText(ctx, MESSAGES.PROMPT_PRODUCT_MSG, { reply_markup: getCancelAdminKeyboard("product") });
+    } else if (data === "admin_product_list") {
+        const list = await listProductMessageIds();
+        const kb = new InlineKeyboard();
+        list.forEach((row, index) => {
+            kb.text(`🗑 #${index + 1}`, `admin_product_del_${row.id}`);
+            kb.row();
+        });
+        kb.text(MESSAGES.BACK, "admin_product_menu");
+        await safeEditText(ctx, "📦 *Список продукту:*", { parse_mode: "Markdown", reply_markup: kb });
+    } else if (data.startsWith("admin_product_del_")) {
+        const id = data.replace("admin_product_del_", "");
+        await deleteProductMessage(id);
+        const baseCallback = ctx.callbackQuery
+            ? { ...ctx.callbackQuery, data: "admin_product_list" }
+            : ({ data: "admin_product_list" } as any);
+        return adminCallback(Object.assign(Object.create(Object.getPrototypeOf(ctx)), ctx, {
+            callbackQuery: baseCallback
+        }));
+    }
     else if (data === "admin_stats") {
         const u = await countUsers();
         const pending = await countPendingOrders();
@@ -139,7 +167,7 @@ export async function adminCallback(ctx: Context) {
             .text(MESSAGES.BACK, "admin_main");
         await safeEditText(ctx, MESSAGES.STATS_BODY(u, pending, paid, s), { parse_mode: "Markdown", reply_markup: kb });
     }
-    else if (data === "admin_stats_buyers") {
+else if (data === "admin_stats_buyers") {
         const buyers = await listPaidBuyers(50);
         if (buyers.length === 0) {
             return safeEditText(ctx, "Покупців ще немає.", { reply_markup: adminKeyboard });
@@ -152,8 +180,24 @@ export async function adminCallback(ctx: Context) {
             return `${idx + 1}. ${title}${amount ? ` — ${amount}` : ""}`;
         });
         const text = `🧾 *Покупці (останні 50):*\n\n${lines.join("\n")}`;
-        const kb = new InlineKeyboard().text(MESSAGES.BACK, "admin_stats");
+        const kb = new InlineKeyboard();
+        buyers.forEach(b => {
+            kb.text(`🗑 ${b.user_id}`, `admin_stats_buyer_del_${b.user_id}`).row();
+        });
+        kb.text(MESSAGES.BACK, "admin_stats");
         await safeEditText(ctx, text, { parse_mode: "Markdown", reply_markup: kb });
+    }
+    else if (data.startsWith("admin_stats_buyer_del_")) {
+        const targetId = parseInt(data.replace("admin_stats_buyer_del_", ""), 10);
+        if (!Number.isNaN(targetId)) {
+            await deletePaidOrdersByUser(targetId);
+        }
+        const baseCallback = ctx.callbackQuery
+            ? { ...ctx.callbackQuery, data: "admin_stats_buyers" }
+            : ({ data: "admin_stats_buyers" } as any);
+        return adminCallback(Object.assign(Object.create(Object.getPrototypeOf(ctx)), ctx, {
+            callbackQuery: baseCallback
+        }));
     }
 
     else if (data.startsWith("admin_cancel_")) {
@@ -186,6 +230,9 @@ export async function adminCallback(ctx: Context) {
         }
         if (target === "offer") {
             return adminCallback(fakeCtx("admin_content_menu"));
+        }
+        if (target === "product") {
+            return adminCallback(fakeCtx("admin_product_menu"));
         }
 
         await safeEditText(ctx, MESSAGES.ADMIN_PANEL_TITLE, { reply_markup: adminKeyboard });
@@ -271,6 +318,13 @@ export async function adminMessageHandler(ctx: Context) {
                 await addWelcomeMessage(payload);
                 adminState.delete(userId);
                 await ctx.reply(MESSAGES.SUCCESS_SAVE, { reply_markup: adminWelcomeKeyboard });
+            }
+        } else if (state.action === "product_add") {
+            if (ctx.message) {
+                const payload = { chat_id: ctx.chat!.id, message_id: ctx.message.message_id };
+                await addProductMessage(payload);
+                adminState.delete(userId);
+                await ctx.reply(MESSAGES.SUCCESS_SAVE, { reply_markup: adminProductKeyboard });
             }
         } else if (state.action.startsWith("welcome_edit_")) {
             if (ctx.message) {

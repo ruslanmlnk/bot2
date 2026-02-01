@@ -17,6 +17,7 @@ export const MESSAGES = {
     PROMPT_REVIEWS: "Напишіть нові відгуки:",
     PROMPT_PRICE: "Введіть нову ціну (тільки число):",
     PROMPT_SUCCESS_MSG: "Напишіть повідомлення, яке користувач отримає ПІСЛЯ успішної оплати:",
+    PROMPT_PRODUCT_MSG: "📦 Надішліть повідомлення продукту (будь-якого типу):",
 
     // Admin Broadcasts
     BROADCAST_MGMT_TITLE: "📢 *Керування розсилками*",
@@ -46,6 +47,8 @@ export const MESSAGES = {
     PAYMENT_DESC: (price: number) => `💰 Сума: *${price} грн*\n\nПісля успішної оплати ви отримаєте доступ автоматично.`,
     PAYMENT_UNAVAILABLE: "⚠️ Оплата тимчасово недоступна (не налаштовано LiqPay ключі).",
     PAYMENT_CONFIRMED: "✅ *Оплата підтверджена!*",
+    PAYMENT_ALREADY: "✅ Ви вже оплатили. Можете перевідправити продукт.",
+    PRODUCT_DELIVERED: "📦 Продукт відправлено.",
 
     // Admin Stats
     STATS_TITLE: "📊 *Статистика*",
@@ -72,12 +75,20 @@ export const BUTTONS = {
     ADMIN_STATS: "📊 Статистика",
     ADMIN_EXIT: "🚪 Вихід",
 
+    ADMIN_PRODUCT: "📦 Продукт",
+
     EDIT_DESC: "📝 Опис",
     EDIT_PROG: "📋 Програма",
     EDIT_REVIEWS: "⭐ Відгуки",
     EDIT_PRICE: "💰 Ціна",
     EDIT_SUCCESS: "🎉 Смс успіху",
     EDIT_OFFER: "📄 Оферта",
+
+    PRODUCT_ADD: "➕ Додати продукт",
+    PRODUCT_LIST: "📦 Список продукту",
+
+    BUY_ALREADY: "✅ Вже куплено",
+    BUY_RESEND: "🔁 Перевідправити",
 
     BC_NEW: "➕ Створити нову розсилку",
     BC_VIEW_MSGS: "📝 Перегляд / видалення смс",

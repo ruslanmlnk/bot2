@@ -55,3 +55,15 @@ export async function listPaidBuyers(limit: number = 50) {
         created_at?: Date;
     }>;
 }
+
+export async function hasPaidOrder(userId: number): Promise<boolean> {
+    const res = await db.query(
+        "SELECT 1 FROM orders WHERE user_id = $1 AND status = 'success' LIMIT 1",
+        [userId]
+    );
+    return (res.rowCount || 0) > 0;
+}
+
+export function deletePaidOrdersByUser(userId: number) {
+    return db.query("DELETE FROM orders WHERE user_id = $1 AND status = 'success'", [userId]);
+}

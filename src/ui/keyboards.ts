@@ -1,16 +1,21 @@
 import { InlineKeyboard } from "grammy";
 import { BUTTONS, MESSAGES } from "../data.js";
 
-export function getMainKeyboard(isAdmin: boolean) {
+export function getMainKeyboard(isAdmin: boolean, isPaid: boolean = false) {
     const kb = new InlineKeyboard()
         .text(BUTTONS.COURSE_DESC, "course_description")
         .row()
         .text(BUTTONS.COURSE_PROG, "course_program")
         .text(BUTTONS.COURSE_REVIEWS, "course_reviews")
-        .row()
-        .text(BUTTONS.COURSE_BUY, "course_buy")
-        .row()
-        .text(BUTTONS.OFFER, "offer_show");
+        .row();
+
+    if (isPaid) {
+        kb.text(BUTTONS.BUY_ALREADY, "course_buy").row().text(BUTTONS.BUY_RESEND, "course_resend");
+    } else {
+        kb.text(BUTTONS.COURSE_BUY, "course_buy");
+    }
+
+    kb.row().text(BUTTONS.OFFER, "offer_show");
 
     if (isAdmin) {
         kb.row().text(BUTTONS.ADMIN_PANEL, "admin_main");
@@ -41,6 +46,8 @@ export const adminContentKeyboard = new InlineKeyboard()
     .text(BUTTONS.EDIT_SUCCESS, "admin_edit_success_message")
     .text(BUTTONS.EDIT_OFFER, "admin_edit_offer")
     .row()
+    .text(BUTTONS.ADMIN_PRODUCT, "admin_product_menu")
+    .row()
     .text(BUTTONS.BACK, "admin_main");
 
 export const adminWelcomeKeyboard = new InlineKeyboard()
@@ -49,6 +56,13 @@ export const adminWelcomeKeyboard = new InlineKeyboard()
     .text(BUTTONS.WELCOME_LIST, "admin_welcome_list")
     .row()
     .text(BUTTONS.BACK, "admin_main");
+
+export const adminProductKeyboard = new InlineKeyboard()
+    .text(BUTTONS.PRODUCT_ADD, "admin_product_add")
+    .row()
+    .text(BUTTONS.PRODUCT_LIST, "admin_product_list")
+    .row()
+    .text(BUTTONS.BACK, "admin_content_menu");
 
 export function getBroadcastsKeyboard(broadcasts: any[]) {
     const kb = new InlineKeyboard();
