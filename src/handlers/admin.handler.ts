@@ -20,7 +20,7 @@ import {
     listWelcomeMessageIds,
     updateWelcomeMessage
 } from "../db/queries/welcomeMessages.js";
-import { countUsers } from "../db/queries/users.js";
+import { countUsers, deleteAllUsers } from "../db/queries/users.js";
 import { countOrders, countPaidOrders, countPendingOrders, deletePaidOrdersByUser, listPaidBuyers, sumSuccessOrders } from "../db/queries/orders.js";
 import { setOfferMessage } from "../db/queries/offerMessage.js";
 import { addProductMessage, deleteProductMessage, listProductMessageIds } from "../db/queries/productMessages.js";
@@ -92,6 +92,10 @@ export async function adminCallback(ctx: Context) {
         const link = `https://t.me/${BOT_USERNAME}?start=ref_${userId}`;
         const html = `<b>Реферальне посилання</b>\n\n<a href="${link}">Відкрити</a>\n${link}`;
         await safeEditText(ctx, html, { parse_mode: "HTML", reply_markup: adminKeyboard });
+    }
+    else if (data === "admin_clear_users") {
+        await deleteAllUsers();
+        await safeEditText(ctx, MESSAGES.USERS_CLEARED, { reply_markup: adminKeyboard });
     }
 
     else if (data === "admin_product_menu") {

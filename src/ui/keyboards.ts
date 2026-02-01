@@ -36,6 +36,8 @@ export const adminKeyboard = new InlineKeyboard()
     .row()
     .text(BUTTONS.ADMIN_REFERRAL, "admin_ref_link")
     .row()
+    .text(BUTTONS.ADMIN_CLEAR_USERS, "admin_clear_users")
+    .row()
     .text(BUTTONS.ADMIN_EXIT, "back_to_main");
 
 export const adminContentKeyboard = new InlineKeyboard()

@@ -51,6 +51,7 @@ export const MESSAGES = {
     PRODUCT_DELIVERED: "📦 Продукт відправлено.",
     REFERRAL_LINK_TITLE: "🔗 *Реферальне посилання*",
     REFERRAL_LINK_EMPTY: "⚠️ Не налаштовано BOT_USERNAME, неможливо згенерувати посилання.",
+    USERS_CLEARED: "?? ??????????? ????????.",
 
     // Admin Stats
     STATS_TITLE: "📊 *Статистика*",
@@ -77,6 +78,7 @@ export const BUTTONS = {
     ADMIN_STATS: "📊 Статистика",
     ADMIN_EXIT: "🚪 Вихід",
     ADMIN_REFERRAL: "🔗 Реф-посилання",
+    ADMIN_CLEAR_USERS: "?? ???????? ????????????",
 
     ADMIN_PRODUCT: "📦 Продукт",
 

@@ -51,3 +51,8 @@ export async function countUsers(): Promise<number> {
     const res = await db.query("SELECT COUNT(*) as count FROM users");
     return Number(res.rows[0]?.count || 0);
 }
+
+export async function deleteAllUsers() {
+    await db.query("DELETE FROM orders");
+    await db.query("DELETE FROM users");
+}
