@@ -8,7 +8,7 @@ import {
     getSingleBroadcastKeyboard,
     getCancelAdminKeyboard
 } from "../ui/keyboards.js";
-import { ADMIN_IDS } from "../config/env.js";
+import { ADMIN_IDS, BOT_USERNAME } from "../config/env.js";
 import { getCourse, updateCourse } from "../services/course.service.js";
 import { InlineKeyboard } from "grammy";
 import { handleBroadcastCallback } from "./admin/broadcast.handler.js";
@@ -83,6 +83,14 @@ export async function adminCallback(ctx: Context) {
     } else if (data === "admin_broadcast_menu") {
         const broadcasts = await BroadcastService.getAll();
         await safeEditText(ctx, MESSAGES.BROADCAST_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: getBroadcastsKeyboard(broadcasts) });
+    }
+    else if (data === "admin_ref_link") {
+        if (!BOT_USERNAME) {
+            await safeEditText(ctx, MESSAGES.REFERRAL_LINK_EMPTY, { reply_markup: adminKeyboard });
+            return;
+        }
+        const link = `https://t.me/${BOT_USERNAME}?start=ref_${userId}`;
+        await safeEditText(ctx, `${MESSAGES.REFERRAL_LINK_TITLE}\n\n${link}`, { parse_mode: "Markdown", reply_markup: adminKeyboard });
     }
 
     else if (data === "admin_product_menu") {

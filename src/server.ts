@@ -5,6 +5,7 @@ import { bot } from './bot.js';
 import { getCourse } from './services/course.service.js';
 import { getOrderStatus, updateOrderStatus } from './db/queries/orders.js';
 import { sendProductDelivery } from './services/admin/product.delivery.js';
+import { getUser } from './services/user.service.js';
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -59,6 +60,26 @@ app.post('/liqpay-callback', async (req, res) => {
                 await sendProductDelivery(bot.api, userId);
             } catch (e) {
                 console.error("Failed to send product delivery:", e);
+            }
+
+            try {
+                const buyer = await getUser(userId);
+                const refId = buyer?.ref_id;
+                if (refId && refId.startsWith("ref_")) {
+                    const ownerId = Number(refId.replace("ref_", ""));
+                    if (Number.isFinite(ownerId) && ownerId !== userId) {
+                        const display = buyer?.username
+                            ? `@${buyer.username}`
+                            : [buyer?.first_name, buyer?.last_name].filter(Boolean).join(" ").trim() || `ID ${userId}`;
+                        await bot.api.sendMessage(
+                            ownerId,
+                            `🔔 Реферальна покупка: ${display} на ${decodedData.amount} грн`,
+                            { parse_mode: "Markdown" }
+                        );
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to notify referral owner:", e);
             }
         }
     }

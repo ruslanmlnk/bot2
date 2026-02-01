@@ -49,6 +49,8 @@ export const MESSAGES = {
     PAYMENT_CONFIRMED: "✅ *Оплата підтверджена!*",
     PAYMENT_ALREADY: "✅ Ви вже оплатили. Можете перевідправити продукт.",
     PRODUCT_DELIVERED: "📦 Продукт відправлено.",
+    REFERRAL_LINK_TITLE: "🔗 *Реферальне посилання*",
+    REFERRAL_LINK_EMPTY: "⚠️ Не налаштовано BOT_USERNAME, неможливо згенерувати посилання.",
 
     // Admin Stats
     STATS_TITLE: "📊 *Статистика*",
@@ -74,6 +76,7 @@ export const BUTTONS = {
     ADMIN_BROADCASTS: "📢 Розсилки",
     ADMIN_STATS: "📊 Статистика",
     ADMIN_EXIT: "🚪 Вихід",
+    ADMIN_REFERRAL: "🔗 Реф-посилання",
 
     ADMIN_PRODUCT: "📦 Продукт",
 
