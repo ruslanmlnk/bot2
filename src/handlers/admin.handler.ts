@@ -90,7 +90,8 @@ export async function adminCallback(ctx: Context) {
             return;
         }
         const link = `https://t.me/${BOT_USERNAME}?start=ref_${userId}`;
-        await safeEditText(ctx, `${MESSAGES.REFERRAL_LINK_TITLE}\n\n${link}`, { parse_mode: "Markdown", reply_markup: adminKeyboard });
+        const html = `<b>Реферальне посилання</b>\n\n<a href="${link}">Відкрити</a>\n${link}`;
+        await safeEditText(ctx, html, { parse_mode: "HTML", reply_markup: adminKeyboard });
     }
 
     else if (data === "admin_product_menu") {
