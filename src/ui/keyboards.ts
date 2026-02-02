@@ -98,10 +98,10 @@ export function getSingleBroadcastKeyboard(id: number, status: string, messagesC
 
 export function getReferralLinksKeyboard(links: any[]) {
     const kb = new InlineKeyboard();
-    kb.text(BUTTONS.REF_ADD, "admin_ref_add").row();
     links.forEach(link => {
-        kb.text(`🔗 ${link.name}`, `admin_ref_view_${link.id}`).row();
+        kb.text(`🔗 ${link.name} (${link.ref_id})`, `admin_ref_view_${link.id}`).row();
     });
+    kb.text(BUTTONS.REF_ADD, "admin_ref_add").row();
     kb.text(BUTTONS.BACK, "admin_main");
     return kb;
 }

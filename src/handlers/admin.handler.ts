@@ -139,7 +139,17 @@ export async function adminCallback(ctx: Context) {
                 .text("🗑 Видалити", `admin_ref_del_${id}`)
                 .row()
                 .text(MESSAGES.BACK, "admin_ref_link");
-            await safeEditText(ctx, text, { parse_mode: "Markdown", reply_markup: kb });
+            try {
+                await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: kb });
+            } catch (e) {
+                console.error("Failed to edit message in ref view:", e);
+                // Fallback if markdown error, though we control the text
+                await ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb }).catch(() => { });
+            }
+        } else {
+            await ctx.answerCallbackQuery("❌ Посилання не знайдено.").catch(() => { });
+            const links = await listReferralLinks();
+            await safeEditText(ctx, MESSAGES.REFERRAL_LINK_TITLE, { parse_mode: "Markdown", reply_markup: getReferralLinksKeyboard(links) });
         }
     }
     else if (data.startsWith("admin_ref_del_")) {
