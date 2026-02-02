@@ -273,41 +273,50 @@ export async function adminCallback(ctx: Context) {
         const target = data.replace("admin_cancel_", "");
         adminState.delete(userId);
 
-        const fakeCtx = (targetData: string) => {
-            const baseCallback = ctx.callbackQuery
-                ? { ...ctx.callbackQuery, data: targetData }
-                : ({ data: targetData } as any);
-            return Object.assign(Object.create(Object.getPrototypeOf(ctx)), ctx, {
-                callbackQuery: baseCallback
-            });
-        };
-
         if (target === "bc_menu") {
-            return adminCallback(fakeCtx("admin_broadcast_menu"));
+            const broadcasts = await BroadcastService.getAll();
+            await safeEditText(ctx, MESSAGES.BROADCAST_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: getBroadcastsKeyboard(broadcasts) });
         }
-        if (target.startsWith("bc_view_")) {
-            return adminCallback(fakeCtx(`admin_${target}`));
+        else if (target.startsWith("bc_view_")) {
+            const id = parseInt(target.replace("bc_view_", ""));
+            const bc = await BroadcastService.getById(id);
+            if (bc) {
+                const msgs = await BroadcastService.getMessages(id);
+                const scheduleText = formatDateTime(bc.scheduled_at);
+                await safeEditText(ctx, MESSAGES.BROADCAST_DETAILS(bc.name, msgs.length, scheduleText), {
+                    parse_mode: "Markdown", reply_markup: getSingleBroadcastKeyboard(id, bc.status, msgs.length, bc.scheduled_at)
+                });
+            } else {
+                await safeEditText(ctx, MESSAGES.BROADCAST_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: getBroadcastsKeyboard(await BroadcastService.getAll()) });
+            }
         }
-        if (target === "welcome_list") {
-            return adminCallback(fakeCtx("admin_welcome_list"));
+        else if (target === "welcome_list") {
+            const list = await listWelcomeMessageIds();
+            const kb = new InlineKeyboard();
+            list.forEach((row, index) => {
+                kb.text(`📝 #${index + 1}`, `admin_welcome_edit_${row.id}`);
+                kb.text(`🗑`, `admin_welcome_del_${row.id}`);
+                kb.row();
+            });
+            kb.text(MESSAGES.BACK, "admin_welcome_menu");
+            await safeEditText(ctx, MESSAGES.WELCOME_LIST_TITLE + "\n\nВиберіть повідомлення для редагування або видалення.", { parse_mode: "Markdown", reply_markup: kb });
         }
-        if (target === "welcome") {
-            return adminCallback(fakeCtx("admin_welcome_menu"));
+        else if (target === "welcome") {
+            await safeEditText(ctx, MESSAGES.WELCOME_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: adminWelcomeKeyboard });
         }
-        if (target === "menu") {
-            return adminCallback(fakeCtx("admin_content_menu"));
+        else if (target === "menu" || target === "offer") {
+            await safeEditText(ctx, MESSAGES.CONTENT_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: adminContentKeyboard });
         }
-        if (target === "offer") {
-            return adminCallback(fakeCtx("admin_content_menu"));
+        else if (target === "ref_link") {
+            const links = await listReferralLinks();
+            await safeEditText(ctx, MESSAGES.REFERRAL_LINK_TITLE, { parse_mode: "Markdown", reply_markup: getReferralLinksKeyboard(links) });
         }
-        if (target === "ref_link") {
-            return adminCallback(fakeCtx("admin_ref_link"));
+        else if (target === "product") {
+            await safeEditText(ctx, "📦 *Продукт*", { parse_mode: "Markdown", reply_markup: adminProductKeyboard });
         }
-        if (target === "product") {
-            return adminCallback(fakeCtx("admin_product_menu"));
+        else {
+            await safeEditText(ctx, MESSAGES.ADMIN_PANEL_TITLE, { reply_markup: adminKeyboard });
         }
-
-        await safeEditText(ctx, MESSAGES.ADMIN_PANEL_TITLE, { reply_markup: adminKeyboard });
     }
 }
 
