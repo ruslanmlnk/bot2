@@ -110,7 +110,9 @@ export async function adminCallback(ctx: Context) {
         try {
             await addReferralLink(name, refId, userId);
             const links = await listReferralLinks();
-            await safeEditText(ctx, MESSAGES.REF_LINK_CREATED, { parse_mode: "Markdown", reply_markup: getReferralLinksKeyboard(links) });
+            const url = `https://t.me/${BOT_USERNAME}?start=${refId}`;
+            const msg = `✅ *Реферальне посилання створено!*\n\n🔗 ID: \`${refId}\`\n📋 Посилання:\n\`${url}\``;
+            await safeEditText(ctx, msg, { parse_mode: "Markdown", reply_markup: getReferralLinksKeyboard(links) });
         } catch (e) {
             await ctx.answerCallbackQuery("❌ Помилка створення посилання. Спробуйте ще раз.").catch(() => { });
         }
@@ -126,14 +128,17 @@ export async function adminCallback(ctx: Context) {
 
             const buyersList = buyers.length > 0
                 ? buyers.map((b, idx) => {
-                    const name = [b.first_name, b.last_name].filter(Boolean).join(" ").trim();
-                    const handle = b.username ? `@${b.username}` : "";
+                    const name = [b.first_name, b.last_name].filter(Boolean).join(" ").trim().replace(/[_*`\[]/g, ""); // Remove Md chars from names
+                    const handle = b.username ? `@${b.username.replace(/[_*`\[]/g, "")}` : "";
                     const title = name || handle || `ID ${b.user_id}`;
                     return `${idx + 1}. ${title} (${b.amount} грн)`;
                 }).join("\n")
                 : "_Купівель поки немає_";
 
-            const text = `🔗 *Посилання:* ${link.name}\n🔑 *ID:* \`${link.ref_id}\`\n💰 *Всього зароблено:* ${totalAmount} грн\n👥 *Покупців:* ${buyers.length}\n\nURL: ${url}\n\n🛒 *Список покупок:*\n${buyersList}`;
+            // Escape special chars in name just in case, though we controlled creation
+            const safeName = link.name.replace(/[_*`\[]/g, "");
+
+            const text = `🔗 *Посилання:* ${safeName}\n🔑 *ID:* \`${link.ref_id}\`\n💰 *Всього зароблено:* ${totalAmount} грн\n👥 *Покупців:* ${buyers.length}\n\n📋 *URL:* \`${url}\`\n\n🛒 *Список покупок:*\n${buyersList}`;
 
             const kb = new InlineKeyboard()
                 .text("🗑 Видалити", `admin_ref_del_${id}`)
@@ -143,7 +148,6 @@ export async function adminCallback(ctx: Context) {
                 await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: kb });
             } catch (e) {
                 console.error("Failed to edit message in ref view:", e);
-                // Fallback if markdown error, though we control the text
                 await ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb }).catch(() => { });
             }
         } else {
