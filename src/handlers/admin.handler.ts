@@ -106,7 +106,7 @@ export async function adminCallback(ctx: Context) {
     }
     else if (data === "admin_ref_add") {
         const refId = generateRefId();
-        const name = `Link_${refId}`;
+        const name = refId;
         try {
             await addReferralLink(name, refId, userId);
             const links = await listReferralLinks();
