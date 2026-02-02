@@ -6,6 +6,7 @@ import { getCourse } from './services/course.service.js';
 import { getOrderStatus, updateOrderStatus } from './db/queries/orders.js';
 import { sendProductDelivery } from './services/admin/product.delivery.js';
 import { getUser } from './services/user.service.js';
+import { getReferralLinkByRefId } from './db/queries/referralLinks.js';
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -65,15 +66,29 @@ app.post('/liqpay-callback', async (req, res) => {
             try {
                 const buyer = await getUser(userId);
                 const refId = buyer?.ref_id;
-                if (refId && refId.startsWith("ref_")) {
-                    const ownerId = Number(refId.replace("ref_", ""));
-                    if (Number.isFinite(ownerId) && ownerId !== userId) {
+                if (refId) {
+                    let ownerId: number | null = null;
+                    let refName = refId;
+
+                    if (refId.startsWith("ref_")) {
+                        ownerId = Number(refId.replace("ref_", ""));
+                    } else {
+                        // Check custom referral links
+                        const customRef = await getReferralLinkByRefId(refId);
+                        if (customRef) {
+                            ownerId = Number(customRef.creator_id);
+                            refName = `${customRef.name} (${customRef.ref_id})`;
+                        }
+                    }
+
+                    if (ownerId && Number.isFinite(ownerId) && ownerId !== userId) {
                         const display = buyer?.username
                             ? `@${buyer.username}`
                             : [buyer?.first_name, buyer?.last_name].filter(Boolean).join(" ").trim() || `ID ${userId}`;
+
                         await bot.api.sendMessage(
                             ownerId,
-                            `🔔 Реферальна покупка: ${display} на ${decodedData.amount} грн`,
+                            `🔔 *Реферальна покупка!*\n\nПокупець: ${display}\nСума: ${decodedData.amount} грн\nРеферал: \`${refName}\``,
                             { parse_mode: "Markdown" }
                         );
                     }

@@ -98,6 +98,14 @@ export async function initDb() {
       CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(telegram_id)
     );
 
+    CREATE TABLE IF NOT EXISTS referral_links (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      ref_id TEXT UNIQUE NOT NULL,
+      creator_id BIGINT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
     INSERT INTO course_data (id, description, program, reviews, price)
     VALUES (1, 'Опис курсу...', 'Програма курсу...', 'Відгуки...', 1000)
     ON CONFLICT (id) DO NOTHING;

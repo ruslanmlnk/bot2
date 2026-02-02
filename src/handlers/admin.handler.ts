@@ -6,14 +6,20 @@ import {
     adminProductKeyboard,
     getBroadcastsKeyboard,
     getSingleBroadcastKeyboard,
-    getCancelAdminKeyboard
+    getCancelAdminKeyboard,
+    getReferralLinksKeyboard
 } from "../ui/keyboards.js";
 import { ADMIN_IDS, BOT_USERNAME } from "../config/env.js";
 import { getCourse, updateCourse } from "../services/course.service.js";
 import { InlineKeyboard } from "grammy";
 import { handleBroadcastCallback } from "./admin/broadcast.handler.js";
 import { BroadcastService } from "../services/admin/broadcast.service.js";
-import { MESSAGES } from "../data.js";
+import { MESSAGES, BUTTONS } from "../data.js";
+import {
+    addReferralLink,
+    deleteReferralLink,
+    listReferralLinks,
+} from "../db/queries/referralLinks.js";
 import {
     addWelcomeMessage,
     deleteWelcomeMessage,
@@ -21,11 +27,21 @@ import {
     updateWelcomeMessage
 } from "../db/queries/welcomeMessages.js";
 import { countUsers, deleteAllUsers } from "../db/queries/users.js";
-import { countOrders, countPaidOrders, countPendingOrders, deletePaidOrdersByUser, listPaidBuyers, sumSuccessOrders } from "../db/queries/orders.js";
+import {
+    countOrders,
+    countPaidOrders,
+    countPendingOrders,
+    deletePaidOrdersByUser,
+    listPaidBuyers,
+    sumSuccessOrders,
+    listPaidBuyersByRefId
+} from "../db/queries/orders.js";
 import { setOfferMessage } from "../db/queries/offerMessage.js";
 import { addProductMessage, deleteProductMessage, listProductMessageIds } from "../db/queries/productMessages.js";
 
 export const adminState = new Map<number, { action: string, data?: any }>();
+
+const generateRefId = () => Math.random().toString(36).substring(2, 10);
 
 async function safeEditText(ctx: Context, text: string, opts?: Parameters<Context["editMessageText"]>[1]) {
     try {
@@ -85,13 +101,52 @@ export async function adminCallback(ctx: Context) {
         await safeEditText(ctx, MESSAGES.BROADCAST_MGMT_TITLE, { parse_mode: "Markdown", reply_markup: getBroadcastsKeyboard(broadcasts) });
     }
     else if (data === "admin_ref_link") {
-        if (!BOT_USERNAME) {
-            await safeEditText(ctx, MESSAGES.REFERRAL_LINK_EMPTY, { reply_markup: adminKeyboard });
-            return;
+        const links = await listReferralLinks();
+        await safeEditText(ctx, MESSAGES.REFERRAL_LINK_TITLE, { parse_mode: "Markdown", reply_markup: getReferralLinksKeyboard(links) });
+    }
+    else if (data === "admin_ref_add") {
+        const refId = generateRefId();
+        const name = `Link_${refId}`;
+        try {
+            await addReferralLink(name, refId, userId);
+            const links = await listReferralLinks();
+            await safeEditText(ctx, MESSAGES.REF_LINK_CREATED, { parse_mode: "Markdown", reply_markup: getReferralLinksKeyboard(links) });
+        } catch (e) {
+            await ctx.answerCallbackQuery("❌ Помилка створення посилання. Спробуйте ще раз.").catch(() => { });
         }
-        const link = `https://t.me/${BOT_USERNAME}?start=ref_${userId}`;
-        const html = `<b>Реферальне посилання</b>\n\n<a href="${link}">Відкрити</a>\n${link}`;
-        await safeEditText(ctx, html, { parse_mode: "HTML", reply_markup: adminKeyboard });
+    }
+    else if (data.startsWith("admin_ref_view_")) {
+        const id = parseInt(data.replace("admin_ref_view_", ""));
+        const links = await listReferralLinks();
+        const link = links.find(l => l.id === id);
+        if (link) {
+            const url = `https://t.me/${BOT_USERNAME}?start=${link.ref_id}`;
+            const buyers = await listPaidBuyersByRefId(link.ref_id);
+            const totalAmount = buyers.reduce((sum, b) => sum + (b.amount || 0), 0);
+
+            const buyersList = buyers.length > 0
+                ? buyers.map((b, idx) => {
+                    const name = [b.first_name, b.last_name].filter(Boolean).join(" ").trim();
+                    const handle = b.username ? `@${b.username}` : "";
+                    const title = name || handle || `ID ${b.user_id}`;
+                    return `${idx + 1}. ${title} (${b.amount} грн)`;
+                }).join("\n")
+                : "_Купівель поки немає_";
+
+            const text = `🔗 *Посилання:* ${link.name}\n🔑 *ID:* \`${link.ref_id}\`\n💰 *Всього зароблено:* ${totalAmount} грн\n👥 *Покупців:* ${buyers.length}\n\nURL: ${url}\n\n🛒 *Список покупок:*\n${buyersList}`;
+
+            const kb = new InlineKeyboard()
+                .text("🗑 Видалити", `admin_ref_del_${id}`)
+                .row()
+                .text(MESSAGES.BACK, "admin_ref_link");
+            await safeEditText(ctx, text, { parse_mode: "Markdown", reply_markup: kb });
+        }
+    }
+    else if (data.startsWith("admin_ref_del_")) {
+        const id = parseInt(data.replace("admin_ref_del_", ""));
+        await deleteReferralLink(id);
+        const links = await listReferralLinks();
+        await safeEditText(ctx, MESSAGES.REFERRAL_LINK_TITLE, { reply_markup: getReferralLinksKeyboard(links) });
     }
     else if (data === "admin_clear_users") {
         await deleteAllUsers();
@@ -180,7 +235,7 @@ export async function adminCallback(ctx: Context) {
             .text(MESSAGES.BACK, "admin_main");
         await safeEditText(ctx, MESSAGES.STATS_BODY(u, pending, paid, s), { parse_mode: "Markdown", reply_markup: kb });
     }
-else if (data === "admin_stats_buyers") {
+    else if (data === "admin_stats_buyers") {
         const buyers = await listPaidBuyers(50);
         if (buyers.length === 0) {
             return safeEditText(ctx, "Покупців ще немає.", { reply_markup: adminKeyboard });
@@ -190,7 +245,8 @@ else if (data === "admin_stats_buyers") {
             const handle = b.username ? `@${b.username}` : "";
             const title = name || handle || `ID ${b.user_id}`;
             const amount = b.amount ? `${b.amount} грн` : "";
-            return `${idx + 1}. ${title}${amount ? ` — ${amount}` : ""}`;
+            const ref = b.ref_id ? ` [Ref: ${b.ref_id}]` : "";
+            return `${idx + 1}. ${title}${amount ? ` — ${amount}` : ""}${ref}`;
         });
         const text = `🧾 *Покупці (останні 50):*\n\n${lines.join("\n")}`;
         const kb = new InlineKeyboard();
@@ -243,6 +299,9 @@ else if (data === "admin_stats_buyers") {
         }
         if (target === "offer") {
             return adminCallback(fakeCtx("admin_content_menu"));
+        }
+        if (target === "ref_link") {
+            return adminCallback(fakeCtx("admin_ref_link"));
         }
         if (target === "product") {
             return adminCallback(fakeCtx("admin_product_menu"));

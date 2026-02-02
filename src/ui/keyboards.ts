@@ -96,6 +96,16 @@ export function getSingleBroadcastKeyboard(id: number, status: string, messagesC
     return kb;
 }
 
+export function getReferralLinksKeyboard(links: any[]) {
+    const kb = new InlineKeyboard();
+    kb.text(BUTTONS.REF_ADD, "admin_ref_add").row();
+    links.forEach(link => {
+        kb.text(`🔗 ${link.name}`, `admin_ref_view_${link.id}`).row();
+    });
+    kb.text(BUTTONS.BACK, "admin_main");
+    return kb;
+}
+
 export function getCancelAdminKeyboard(action: string) {
     return new InlineKeyboard().text(BUTTONS.CANCEL || MESSAGES.CANCEL, `admin_cancel_${action}`);
 }

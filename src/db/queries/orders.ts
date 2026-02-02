@@ -38,7 +38,7 @@ export async function sumSuccessOrders(): Promise<number> {
 
 export async function listPaidBuyers(limit: number = 50) {
     const res = await db.query(
-        `SELECT o.user_id, u.username, u.first_name, u.last_name, o.amount, o.created_at
+        `SELECT o.user_id, u.username, u.first_name, u.last_name, u.ref_id, o.amount, o.created_at
          FROM orders o
          LEFT JOIN users u ON u.telegram_id = o.user_id
          WHERE o.status = 'success'
@@ -51,6 +51,7 @@ export async function listPaidBuyers(limit: number = 50) {
         username?: string | null;
         first_name?: string | null;
         last_name?: string | null;
+        ref_id?: string | null;
         amount?: number | null;
         created_at?: Date;
     }>;
@@ -66,4 +67,25 @@ export async function hasPaidOrder(userId: number): Promise<boolean> {
 
 export function deletePaidOrdersByUser(userId: number) {
     return db.query("DELETE FROM orders WHERE user_id = $1 AND status = 'success'", [userId]);
+}
+
+export async function listPaidBuyersByRefId(refId: string, limit: number = 50) {
+    const res = await db.query(
+        `SELECT o.user_id, u.username, u.first_name, u.last_name, u.ref_id, o.amount, o.created_at
+         FROM orders o
+         LEFT JOIN users u ON u.telegram_id = o.user_id
+         WHERE o.status = 'success' AND u.ref_id = $2
+         ORDER BY o.created_at DESC
+         LIMIT $1`,
+        [limit, refId]
+    );
+    return res.rows as Array<{
+        user_id: number;
+        username?: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+        ref_id?: string | null;
+        amount?: number | null;
+        created_at?: Date;
+    }>;
 }
