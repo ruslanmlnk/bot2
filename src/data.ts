@@ -45,7 +45,7 @@ export const MESSAGES = {
     // Payments
     PAYMENT_TITLE: "💳 *Оплата курсу*",
     PAYMENT_DESC: (price: number) => `💰 Сума: *${price} грн*\n\nПісля успішної оплати ви отримаєте доступ автоматично.`,
-    PAYMENT_UNAVAILABLE: "⚠️ Оплата тимчасово недоступна (не налаштовано LiqPay ключі).",
+    PAYMENT_UNAVAILABLE: "⚠️ Оплата тимчасово недоступна (не налаштовано WayForPay ключі).",
     PAYMENT_CONFIRMED: "✅ *Оплата підтверджена!*",
     PAYMENT_ALREADY: "✅ Ви вже оплатили. Можете перевідправити продукт.",
     PRODUCT_DELIVERED: "📦 Продукт відправлено.",
@@ -109,7 +109,7 @@ export const BUTTONS = {
     WELCOME_ADD: "➕ Додати СМС",
     WELCOME_LIST: "📜 Список / Видалення",
 
-    LIQPAY_PAY: "💳 Оплатити через LiqPay",
+    WAYFORPAY_PAY: "💳 Оплатити через WayForPay",
     BACK: "⬅️ Назад",
     CANCEL: "❌ Скасувати"
 };

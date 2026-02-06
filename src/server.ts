@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import { LIQPAY_PRIVATE_KEY } from './config/env.js';
+import { WAYFORPAY_SECRET_KEY } from './config/env.js';
 import { bot } from './bot.js';
 import { getCourse } from './services/course.service.js';
 import { getOrderStatus, updateOrderStatus } from './db/queries/orders.js';
@@ -12,41 +12,61 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.post('/liqpay-callback', async (req, res) => {
-    const { data, signature } = req.body;
+app.post('/wayforpay-callback', async (req, res) => {
+    const data = req.body;
+    console.log('WayForPay Payment Data:', data);
 
-    if (!data || !signature) {
+    const {
+        merchantAccount,
+        orderReference,
+        amount,
+        currency,
+        authCode,
+        cardPan,
+        transactionStatus,
+        reasonCode,
+        merchantSignature
+    } = data;
+
+    if (!orderReference || !merchantSignature) {
         return res.status(400).send('Missing data or signature');
     }
 
     // Verify signature
-    const sign = crypto
-        .createHash('sha1')
-        .update(LIQPAY_PRIVATE_KEY + data + LIQPAY_PRIVATE_KEY)
-        .digest('base64');
+    const stringToSign = [
+        merchantAccount,
+        orderReference,
+        amount,
+        currency,
+        authCode,
+        cardPan,
+        transactionStatus,
+        reasonCode
+    ].join(';');
 
-    if (sign !== signature) {
-        console.error('LiqPay signature mismatch');
+    const sign = crypto
+        .createHmac('md5', WAYFORPAY_SECRET_KEY)
+        .update(stringToSign, 'utf8')
+        .digest('hex');
+
+    if (sign !== merchantSignature) {
+        console.error('WayForPay signature mismatch');
         return res.status(400).send('Invalid signature');
     }
 
-    const decodedData = JSON.parse(Buffer.from(data, 'base64').toString());
-    console.log('LiqPay Payment Data:', decodedData);
-
-    const { order_id, status } = decodedData;
-
-    // order_id is in format: order_USERID_TIMESTAMP
-    const parts = order_id.split('_');
+    const orderId = orderReference;
+    const parts = orderId.split('_');
     const userId = Number(parts[1]);
+
     if (!Number.isFinite(userId)) {
         return res.status(400).send('Invalid user id');
     }
 
-    if (status === 'success' || status === 'wait_accept') {
-        const currentStatus = await getOrderStatus(order_id);
+    if (transactionStatus === 'Approved') {
+        const currentStatus = await getOrderStatus(orderId);
 
         if (currentStatus && currentStatus !== 'success') {
-            await updateOrderStatus(order_id, 'success');
+            await updateOrderStatus(orderId, 'success');
 
             const course = await getCourse();
 
@@ -54,7 +74,6 @@ app.post('/liqpay-callback', async (req, res) => {
             await bot.api.sendMessage(userId, course.success_message, { parse_mode: 'Markdown' });
 
             // Try to find the original message and update it to "Paid"
-            // We don't store message_id in orders yet, but we can send a new confirmation
             await bot.api.sendMessage(userId, "✅ *Оплата підтверджена!*", { parse_mode: 'Markdown' });
 
             try {
@@ -88,7 +107,7 @@ app.post('/liqpay-callback', async (req, res) => {
 
                         await bot.api.sendMessage(
                             ownerId,
-                            `🔔 *Реферальна покупка!*\n\nПокупець: ${display}\nСума: ${decodedData.amount} грн\nРеферал: \`${refName}\``,
+                            `🔔 *Реферальна покупка!*\n\nПокупець: ${display}\nСума: ${amount} грн\nРеферал: \`${refName}\``,
                             { parse_mode: "Markdown" }
                         );
                     }
@@ -99,12 +118,24 @@ app.post('/liqpay-callback', async (req, res) => {
         }
     }
 
-    res.send('OK');
+    // WayForPay response requirement
+    const time = Math.floor(Date.now() / 1000);
+    const responseSignature = crypto
+        .createHmac('md5', WAYFORPAY_SECRET_KEY)
+        .update(`${orderId};accept;${time}`, 'utf8')
+        .digest('hex');
+
+    res.json({
+        orderReference: orderId,
+        status: 'accept',
+        time,
+        signature: responseSignature
+    });
 });
 
 export function startServer() {
     const port = process.env.PORT || 3000;
     app.listen(port, () => {
-        console.log(`Server listening on port ${port} for LiqPay callbacks`);
+        console.log(`Server listening on port ${port} for WayForPay callbacks`);
     });
 }

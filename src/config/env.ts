@@ -3,8 +3,9 @@ import 'dotenv/config';
 export const BOT_API_KEY = process.env.BOT_API_KEY || '';
 export const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
 export const PAYMENT_PROVIDER_TOKEN = process.env.PAYMENT_PROVIDER_TOKEN || '';
-export const LIQPAY_PUBLIC_KEY = process.env.LIQPAY_PUBLIC_KEY || '';
-export const LIQPAY_PRIVATE_KEY = process.env.LIQPAY_PRIVATE_KEY || '';
+export const WAYFORPAY_MERCHANT_ACCOUNT = process.env.WAYFORPAY_MERCHANT_ACCOUNT || '';
+export const WAYFORPAY_SECRET_KEY = process.env.WAYFORPAY_SECRET_KEY || '';
+export const WAYFORPAY_MERCHANT_DOMAIN_NAME = process.env.WAYFORPAY_MERCHANT_DOMAIN_NAME || '';
 export const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'http://localhost:3000';
 export const BOT_USERNAME = process.env.BOT_USERNAME || '';
 
