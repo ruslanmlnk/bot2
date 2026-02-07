@@ -13,7 +13,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.post('/wayforpay-callback', async (req, res) => {
-    const data = req.body;
+    let data = req.body;
+
+    // Check if WayForPay sent JSON as a key in urlencoded body (common issue)
+    if (data && typeof data === 'object' && !data.orderReference) {
+        const keys = Object.keys(data);
+        if (keys.length === 1 && keys[0].startsWith('{')) {
+            try {
+                data = JSON.parse(keys[0]);
+            } catch (e) {
+                console.error('Failed to parse WayForPay JSON from key:', e);
+            }
+        }
+    }
+
     console.log('--- WayForPay Callback Received ---');
     console.log('Data:', JSON.stringify(data, null, 2));
 
