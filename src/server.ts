@@ -14,7 +14,8 @@ app.use(express.json());
 
 app.post('/wayforpay-callback', async (req, res) => {
     const data = req.body;
-    console.log('WayForPay Payment Data:', data);
+    console.log('--- WayForPay Callback Received ---');
+    console.log('Data:', JSON.stringify(data, null, 2));
 
     const {
         merchantAccount,
@@ -29,10 +30,12 @@ app.post('/wayforpay-callback', async (req, res) => {
     } = data;
 
     if (!orderReference || !merchantSignature) {
+        console.warn('WayForPay: Missing data or signature');
         return res.status(400).send('Missing data or signature');
     }
 
     // Verify signature
+    // Values must be joined as strings. WayForPay often sends them as strings anyway in urlencoded.
     const stringToSign = [
         merchantAccount,
         orderReference,
@@ -50,31 +53,39 @@ app.post('/wayforpay-callback', async (req, res) => {
         .digest('hex');
 
     if (sign !== merchantSignature) {
-        console.error('WayForPay signature mismatch');
+        console.error('WayForPay signature mismatch!');
+        console.error('Calculated sign:', sign);
+        console.error('Received sign:', merchantSignature);
+        console.error('String to sign was:', stringToSign);
         return res.status(400).send('Invalid signature');
     }
+
+    console.log(`WayForPay: Signature verified for order ${orderReference}. Status: ${transactionStatus}`);
 
     const orderId = orderReference;
     const parts = orderId.split('_');
     const userId = Number(parts[1]);
 
     if (!Number.isFinite(userId)) {
+        console.error('WayForPay: Could not extract userId from orderReference', orderReference);
         return res.status(400).send('Invalid user id');
     }
 
     if (transactionStatus === 'Approved') {
         const currentStatus = await getOrderStatus(orderId);
+        console.log(`Order ${orderId} current DB status: ${currentStatus}`);
 
         if (currentStatus && currentStatus !== 'success') {
+            console.log(`Updating order ${orderId} to success and notifying user ${userId}`);
             await updateOrderStatus(orderId, 'success');
 
             const course = await getCourse();
 
             // Send final success message
-            await bot.api.sendMessage(userId, course.success_message, { parse_mode: 'Markdown' });
+            await bot.api.sendMessage(userId, course.success_message, { parse_mode: 'Markdown' }).catch(e => console.error("Error sending success message:", e));
 
             // Try to find the original message and update it to "Paid"
-            await bot.api.sendMessage(userId, "✅ *Оплата підтверджена!*", { parse_mode: 'Markdown' });
+            await bot.api.sendMessage(userId, "✅ *Оплата підтверджена! Дякуємо!*", { parse_mode: 'Markdown' }).catch(e => console.error("Error sending confirmation:", e));
 
             try {
                 await sendProductDelivery(bot.api, userId);
@@ -109,13 +120,17 @@ app.post('/wayforpay-callback', async (req, res) => {
                             ownerId,
                             `🔔 *Реферальна покупка!*\n\nПокупець: ${display}\nСума: ${amount} грн\nРеферал: \`${refName}\``,
                             { parse_mode: "Markdown" }
-                        );
+                        ).catch(e => console.error("Error notifying referrer:", e));
                     }
                 }
             } catch (e) {
                 console.error("Failed to notify referral owner:", e);
             }
+        } else {
+            console.log(`Order ${orderId} ignored (status is already success or order not found)`);
         }
+    } else {
+        console.log(`Transaction status for ${orderId} is ${transactionStatus}, not 'Approved'.`);
     }
 
     // WayForPay response requirement

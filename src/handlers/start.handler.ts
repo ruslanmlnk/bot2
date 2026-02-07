@@ -26,9 +26,10 @@ export async function startHandler(ctx: Context) {
 
         if (isPaymentReturn) {
             if (ctx.message?.message_id) {
-                await ctx.deleteMessage().catch(() => { });
+                // We keep the message for a moment but let the execution continue 
+                // to show the main menu with updated status.
+                // await ctx.deleteMessage().catch(() => { }); 
             }
-            return;
         }
         let isPaid = false;
         if (user) {
@@ -43,36 +44,36 @@ export async function startHandler(ctx: Context) {
             isPaid = await hasPaidOrder(user.id);
         }
 
-    // Fetch all welcome messages
-    const messages = await listWelcomeMessageContents();
+        // Fetch all welcome messages
+        const messages = await listWelcomeMessageContents();
 
-    for (let i = 0; i < messages.length; i++) {
-        const isLast = i === messages.length - 1;
-        const targetId = ctx.from?.id;
-        if (!targetId) break;
-        const payload = normalizePayload(messages[i].content);
+        for (let i = 0; i < messages.length; i++) {
+            const isLast = i === messages.length - 1;
+            const targetId = ctx.from?.id;
+            if (!targetId) break;
+            const payload = normalizePayload(messages[i].content);
 
-        try {
-            if (payload?.chat_id && payload?.message_id) {
-                // Use copyMessage for true cloning of any message type
-                await ctx.api.copyMessage(targetId, payload.chat_id, payload.message_id, {
-                    reply_markup: isLast ? getMainKeyboard(ADMIN_IDS.includes(targetId), isPaid) : undefined
-                });
-            } else if (payload?.text) {
-                // Legacy support for text-only messages
-                await ctx.reply(payload.text, {
-                    parse_mode: "Markdown",
-                    reply_markup: isLast ? getMainKeyboard(ADMIN_IDS.includes(targetId), isPaid) : undefined
-                });
+            try {
+                if (payload?.chat_id && payload?.message_id) {
+                    // Use copyMessage for true cloning of any message type
+                    await ctx.api.copyMessage(targetId, payload.chat_id, payload.message_id, {
+                        reply_markup: isLast ? getMainKeyboard(ADMIN_IDS.includes(targetId), isPaid) : undefined
+                    });
+                } else if (payload?.text) {
+                    // Legacy support for text-only messages
+                    await ctx.reply(payload.text, {
+                        parse_mode: "Markdown",
+                        reply_markup: isLast ? getMainKeyboard(ADMIN_IDS.includes(targetId), isPaid) : undefined
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to send welcome message:", e);
             }
-        } catch (e) {
-            console.error("Failed to send welcome message:", e);
-        }
 
-        if (isLast && user && ADMIN_IDS.includes(user.id)) {
-            await ctx.reply(`🛠 *Адмін доступ активовано.* /admin`, { parse_mode: "Markdown" });
+            if (isLast && user && ADMIN_IDS.includes(user.id)) {
+                await ctx.reply(`🛠 *Адмін доступ активовано.* /admin`, { parse_mode: "Markdown" });
+            }
         }
-    }
     } catch (e) {
         console.error("Start handler error:", e);
         await ctx.reply(MESSAGES.ERROR_GENERAL).catch(() => { });
